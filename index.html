@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Rizo Store · Qoldiqlar prototipi</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800;900&display=swap">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div id="workspace">
+    <header class="topbar">
+      <button class="icon-button mobile-menu" data-open="navigation" aria-label="Menyu" aria-controls="navigation" aria-expanded="false"><span data-icon="menu"></span></button>
+      <a class="brand" href="./index.html" aria-label="Rizo Store — Qoldiqlar"><b>RiZO</b><span>STORE</span></a>
+      <span class="prototype-label">Frontend prototip · sinov ma’lumotlari</span>
+      <button class="icon-button quick-trigger" data-open="quick-panel" aria-label="Tezkor kirish" aria-controls="quick-panel" aria-expanded="false"><span data-icon="grid"></span></button>
+    </header>
+    <aside class="desktop-sidebar" aria-label="Asosiy navigatsiya"><div class="nav-items"></div><div class="sidebar-foot">Frontend prototip</div></aside>
+    <main id="main">
+      <div class="title-row"><h1>Qoldiq</h1><span class="sample-badge">Namuna</span></div>
+      <nav class="report-tabs" aria-label="Hisobotlar">
+        <span class="selected" aria-current="page">Qoldiqlar</span><span>Sotib olish</span><span>Mahsulot bo‘yicha sotish</span><span>Qaytish</span><span>Yalpi daromad</span><span>Keshbek</span><span>Kassa</span>
+      </nav>
+      <div class="sub-tabs"><span class="selected">Qoldiq</span><span>Zaxiralangan mahsulotlar</span></div>
+      <div class="toolbar">
+        <label class="search"><span data-icon="search"></span><input id="search" type="search" placeholder="Qidirish" aria-label="Mahsulot nomi yoki shtrix-kodi bo‘yicha qidirish" autocomplete="off"></label>
+        <div class="pending-actions" aria-label="Keyingi bosqichda qo‘shiladigan amallar">
+          <button class="outline-button" disabled title="Keyingi bosqichda"><span data-icon="filter"></span>Filtr</button>
+          <button class="outline-button" disabled title="Keyingi bosqichda"><span data-icon="export"></span>Eksport</button>
+          <button class="outline-button" disabled title="Keyingi bosqichda"><span data-icon="print"></span>Chop etish</button>
+        </div>
+      </div>
+      <div class="list-meta"><span id="result-count" role="status" aria-live="polite"></span><span>Sinov ma’lumotlari</span></div>
+      <div class="table-wrap" tabindex="0" role="region" aria-label="Qoldiqlar jadvali, gorizontal aylantirish mumkin">
+        <table><thead><tr><th scope="col">№</th><th scope="col">Mahsulot nomlari</th><th scope="col">Shtrix-kod</th><th scope="col">Turkum</th><th scope="col" class="numeric">Miqdori</th><th scope="col">O‘lchov birligi</th><th scope="col">Valyuta</th><th scope="col" class="numeric">Kirish narxi</th><th scope="col" class="numeric">Yakuniy kirish qiymati</th><th scope="col">Filial</th><th scope="col">Holat</th></tr></thead><tbody id="table-body"></tbody></table>
+      </div>
+      <div id="cards" class="cards"></div>
+      <div class="empty" id="empty" hidden><span data-icon="search"></span><h2>Mahsulot topilmadi</h2><p>Boshqa nom yoki shtrix-kodni kiriting.</p><button class="outline-button" id="clear-search">Qidiruvni tozalash</button></div>
+      <p class="stage-note">Birinchi bosqich: ro‘yxat va qidiruv. Filtr, tafsilotlar, eksport va boshqa bo‘limlar hali ulanmagan.</p>
+    </main>
+  </div>
+  <dialog id="navigation" class="drawer drawer-left" aria-labelledby="navigation-title"><header class="drawer-header"><h2 id="navigation-title">Menyu</h2><button class="icon-button" data-close aria-label="Menyuni yopish"><span data-icon="close"></span></button></header><nav class="nav-items" aria-label="Mobil navigatsiya"></nav><p class="drawer-note">Hozir Qoldiqlar bo‘limi faol.</p></dialog>
+  <dialog id="quick-panel" class="drawer drawer-right" aria-labelledby="quick-title"><header class="drawer-header"><h2 id="quick-title">Tezkor kirish</h2><button class="icon-button" data-close aria-label="Tezkor kirishni yopish"><span data-icon="close"></span></button></header><nav class="quick-list" aria-label="Tezkor kirish"><button disabled><span data-icon="cart"></span><span>Xarid qilish</span><small>Keyin</small></button><button disabled><span data-icon="box"></span><span>Mahsulotlar</span><small>Keyin</small></button><button data-remainder><span data-icon="chart"></span><span>Qoldiq</span></button></nav><p class="drawer-note">Tezkor kirish namunasi</p></dialog>
+</body>
+</html>
