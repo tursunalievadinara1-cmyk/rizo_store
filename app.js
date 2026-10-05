@@ -150,6 +150,62 @@ filterSheet.addEventListener('click', event => {
 });
 render();
 
+// Mobile access to the same report sections and actions shown on desktop.
+const reportChoiceSheet = document.getElementById('report-choice-sheet');
+let reportChoiceTrigger = null;
+let reportChoiceOverflow = '';
+document.querySelectorAll('[data-choice-sheet]').forEach(trigger => {
+  trigger.addEventListener('click', () => {
+    reportChoiceTrigger = trigger;
+    const isReports = trigger.dataset.choiceSheet === 'reports';
+    document.getElementById('report-choice-title').textContent = isReports ? 'Hisobotlar' : 'Qo‘shimcha amallar';
+    document.getElementById('report-choice-note').textContent = isReports
+      ? 'Hozir Qoldiq bo‘limi faol. Qolgan bo‘limlar hali ulanmagan.'
+      : 'Eksport va chop etish hali ulanmagan.';
+    const list = document.getElementById('report-choices');
+    list.replaceChildren();
+    const addChoice = (label, active = false) => {
+      const button = document.createElement('button');
+      button.className = 'report-choice';
+      const name = document.createElement('span');
+      name.textContent = label;
+      const state = document.createElement('small');
+      state.textContent = active ? 'Tanlangan' : 'Hali ulanmagan';
+      button.append(name, state);
+      if (active) {
+        button.setAttribute('aria-current', 'page');
+        button.addEventListener('click', () => reportChoiceSheet.close());
+      } else button.disabled = true;
+      list.append(button);
+    };
+    if (isReports) {
+      document.querySelectorAll('.report-tabs>span').forEach(item => addChoice(item.textContent, item.classList.contains('selected')));
+      const subtitle = document.createElement('p');
+      subtitle.className = 'report-choice-subtitle';
+      subtitle.textContent = 'Qoldiqlar bo‘limi';
+      list.append(subtitle);
+      document.querySelectorAll('.sub-tabs>span').forEach(item => addChoice(item.textContent, item.classList.contains('selected')));
+    } else {
+      addChoice('Eksport');
+      addChoice('Chop etish');
+    }
+    reportChoiceOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    reportChoiceSheet.showModal();
+    trigger.setAttribute('aria-expanded', 'true');
+  });
+});
+document.getElementById('report-choice-close').addEventListener('click', () => reportChoiceSheet.close());
+reportChoiceSheet.addEventListener('close', () => {
+  document.body.style.overflow = reportChoiceOverflow;
+  reportChoiceTrigger?.setAttribute('aria-expanded', 'false');
+  if (reportChoiceTrigger?.getClientRects().length) reportChoiceTrigger.focus({preventScroll:true});
+});
+reportChoiceSheet.addEventListener('click', event => {
+  if (event.target !== reportChoiceSheet) return;
+  const rect = reportChoiceSheet.getBoundingClientRect();
+  if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) reportChoiceSheet.close();
+});
 
 // Hash routes work on the static host, including direct links and browser Back.
 const productPage = document.getElementById('product-page');

@@ -41,12 +41,14 @@
         <span class="selected" aria-current="page">Qoldiqlar</span><span>Sotib olish</span><span>Mahsulot bo‘yicha sotish</span><span>Qaytish</span><span>Yalpi daromad</span><span>Keshbek</span><span>Kassa</span>
       </nav>
       <div class="sub-tabs"><span class="selected">Qoldiq</span><span>Zaxiralangan mahsulotlar</span></div>
+      <button class="mobile-report-picker" data-choice-sheet="reports" aria-haspopup="dialog" aria-controls="report-choice-sheet" aria-expanded="false"><span data-icon="chart"></span><span>Hisobotlar <strong>Qoldiqlar</strong></span><span aria-hidden="true">⌄</span></button>
       <div class="toolbar">
         <label class="search"><span data-icon="search"></span><input id="search" type="search" placeholder="Qidirish" aria-label="Mahsulot nomi yoki shtrix-kodi bo‘yicha qidirish" autocomplete="off"></label>
         <div class="pending-actions" aria-label="Ro‘yxat amallari">
           <button class="outline-button" id="filter-trigger" aria-label="Filtr" aria-haspopup="dialog" aria-controls="filter-sheet"><span data-icon="filter"></span>Filtr<span id="filter-count" hidden></span></button>
           <button class="outline-button" disabled title="Keyingi bosqichda"><span data-icon="export"></span>Eksport</button>
           <button class="outline-button" disabled title="Keyingi bosqichda"><span data-icon="print"></span>Chop etish</button>
+          <button class="icon-button mobile-more" data-choice-sheet="actions" aria-label="Qo‘shimcha amallar" aria-haspopup="dialog" aria-controls="report-choice-sheet" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button>
         </div>
       </div>
       <div id="filter-chips" class="filter-chips" aria-label="Faol filtrlar"></div>
@@ -79,6 +81,12 @@
     <div id="filter-fields" class="filter-fields"></div>
     <fieldset id="filter-options" class="filter-options" hidden><legend class="sr-only">Qiymatni tanlang</legend><div id="filter-option-list"></div></fieldset>
     <footer id="filter-footer" class="sheet-footer"><button id="filter-reset" class="outline-button">Tozalash</button><button id="filter-apply" class="primary-button">Qo‘llash</button></footer>
+  </dialog>
+  <dialog id="report-choice-sheet" class="filter-sheet report-choice-sheet" aria-labelledby="report-choice-title" aria-describedby="report-choice-note">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <header class="sheet-header"><h2 id="report-choice-title">Hisobotlar</h2><button class="icon-button" id="report-choice-close" aria-label="Oynani yopish"><span data-icon="close"></span></button></header>
+    <p id="report-choice-note" class="choice-note"></p>
+    <div id="report-choices" class="report-choices"></div>
   </dialog>
 </body>
 </html>
