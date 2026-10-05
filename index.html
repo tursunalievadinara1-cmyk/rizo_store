@@ -37,9 +37,17 @@
       </div>
       <div id="cards" class="cards"></div>
       <div class="empty" id="empty" hidden><span data-icon="search"></span><h2>Mahsulot topilmadi</h2><p>Boshqa nom yoki shtrix-kodni kiriting.</p><button class="outline-button" id="clear-search">Qidiruvni tozalash</button></div>
-      <p class="stage-note">Birinchi bosqich: ro‘yxat va qidiruv. Filtr, tafsilotlar, eksport va boshqa bo‘limlar hali ulanmagan.</p>
+      <p class="stage-note">Ro‘yxat, qidiruv va mahsulot tafsilotlari faol. Filtr, eksport va boshqa bo‘limlar hali ulanmagan.</p>
     </main>
   </div>
+  <main id="product-page" class="product-page" aria-labelledby="product-title" hidden>
+    <header class="detail-header">
+      <button id="detail-back" class="icon-button" aria-label="Qoldiqlarga qaytish"><span data-icon="back"></span></button>
+      <span>Mahsulot tafsiloti</span>
+      <span class="sample-badge">Namuna</span>
+    </header>
+    <div class="detail-content" id="detail-content"></div>
+  </main>
   <dialog id="navigation" class="drawer drawer-left" aria-labelledby="navigation-title"><header class="drawer-header"><h2 id="navigation-title">Menyu</h2><button class="icon-button" data-close aria-label="Menyuni yopish"><span data-icon="close"></span></button></header><nav class="nav-items" aria-label="Mobil navigatsiya"></nav><p class="drawer-note">Hozir Qoldiqlar bo‘limi faol.</p></dialog>
   <dialog id="quick-panel" class="drawer drawer-right" aria-labelledby="quick-title"><header class="drawer-header"><h2 id="quick-title">Tezkor kirish</h2><button class="icon-button" data-close aria-label="Tezkor kirishni yopish"><span data-icon="close"></span></button></header><nav class="quick-list" aria-label="Tezkor kirish"><button disabled><span data-icon="cart"></span><span>Xarid qilish</span><small>Keyin</small></button><button disabled><span data-icon="box"></span><span>Mahsulotlar</span><small>Keyin</small></button><button data-remainder><span data-icon="chart"></span><span>Qoldiq</span></button></nav><p class="drawer-note">Tezkor kirish namunasi</p></dialog>
 </body>

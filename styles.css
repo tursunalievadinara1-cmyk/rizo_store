@@ -6,3 +6,33 @@
 @media(max-width:1100px) and (min-width:761px){.toolbar{flex-wrap:wrap}.search{max-width:none}.pending-actions{margin-left:0}.desktop-sidebar{width:210px}.brand{width:161px}main{margin-left:210px}}
 @media(max-width:760px){.topbar{height:64px;padding:0 8px;gap:8px}.mobile-menu{display:flex}.brand{width:auto;margin:0 auto}.brand b{font-size:30px}.brand>span{font-size:15px}.quick-trigger{margin-left:0}.prototype-label,.desktop-sidebar{display:none}main{margin-left:0;padding:20px 16px max(24px,env(safe-area-inset-bottom))}.title-row{margin-bottom:16px}h1{font-size:25px}.sample-badge{margin-left:auto}.report-tabs,.sub-tabs{display:none}.toolbar{margin-top:0;gap:8px}.search{max-width:none;border-radius:10px}.pending-actions{margin:0}.pending-actions .outline-button{display:none}.pending-actions .outline-button:first-child{display:flex;width:48px;padding:0;font-size:0;border-color:var(--line);background:white;border-radius:10px;gap:0}.pending-actions .outline-button svg{width:22px;height:22px}.table-wrap{display:none}.cards{display:grid;gap:10px}.stock-card{padding:16px;background:white;border:1px solid var(--line);border-radius:14px;min-width:0}.card-head{display:flex;align-items:flex-start;gap:12px}.stock-card h2{font-size:15px;font-weight:800;line-height:1.45;margin:0;overflow-wrap:anywhere;min-width:0;flex:1}.currency{font-size:10px;font-weight:800;border-radius:6px;padding:4px 7px;color:var(--primary);background:var(--pale);flex-shrink:0}.card-values{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:12px;margin:16px 0 0}.card-values>div:last-child{text-align:right}.card-values dt{font-size:11px;color:var(--muted);margin-bottom:4px}.card-values dd{margin:0;font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;line-height:1.4}.unit{font-size:12px;font-weight:400;color:var(--muted)}.stock-card .status{margin-top:12px}.list-meta{margin-top:16px}.stage-note{font-size:11px}.drawer-header{padding-left:16px}.drawer{padding-bottom:env(safe-area-inset-bottom)}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;scroll-behavior:auto!important}}
+
+/* Product route: a full page, with the same type and color system. */
+.product-link{color:inherit;text-decoration:none}
+.table-wrap .product-link{display:inline-block;padding:6px 0;font-weight:700}
+.product-link:hover{color:var(--primary)}
+.stock-card{position:relative}
+.stock-card .product-link::after{content:"";position:absolute;inset:0;border-radius:14px}
+.stock-card:focus-within{outline:3px solid #bd83d7;outline-offset:2px}
+.product-page{margin:0;padding:0;min-height:100dvh;background:var(--bg);touch-action:pan-y;transition:transform .18s ease-out;overflow-x:clip}
+.product-page.swiping{transition:none}
+.detail-header{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:10px;min-height:64px;padding:8px max(16px,calc((100% - 840px)/2));background:white;border-bottom:1px solid var(--line);font-size:16px;font-weight:800}
+.detail-header .sample-badge{margin-left:auto;font-weight:400}
+.detail-content{max-width:840px;margin:0 auto;padding:24px 16px max(24px,env(safe-area-inset-bottom))}
+.detail-summary,.detail-information{padding:24px;background:white;border:1px solid var(--line);border-radius:14px;margin-bottom:16px;min-width:0}
+.detail-kicker{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.detail-kicker .currency{color:var(--primary);background:var(--pale);border-radius:6px;padding:4px 7px;font-size:11px;font-weight:800}
+.detail-summary h1{font-size:26px;line-height:1.4;overflow-wrap:anywhere;margin:0 0 20px;outline:none}
+.detail-totals{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:12px;border-top:1px solid var(--line);padding-top:18px;margin:0}
+.detail-totals>div:last-child{text-align:right}
+.detail-totals dt{font-size:12px;color:var(--muted);margin-bottom:5px}
+.detail-totals dd{font-size:24px;font-weight:800;margin:0;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.detail-totals .unit{font-size:12px;font-weight:400;color:var(--muted);display:inline-block}
+.detail-information h2{font-size:16px;margin:0 0 12px;color:var(--heading)}
+.detail-fields{margin:0}
+.detail-fields>div{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:16px;padding:14px 0;border-bottom:1px solid var(--line);font-size:14px}
+.detail-fields>div:last-child{border-bottom:0;padding-bottom:0}
+.detail-fields dt{color:var(--muted)}
+.detail-fields dd{margin:0;text-align:right;font-weight:700;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+@media(max-width:760px){.detail-header{padding:8px}.detail-content{padding-top:16px}.detail-summary,.detail-information{padding:16px}.detail-summary h1{font-size:21px}.detail-totals dd{font-size:18px}.detail-fields>div{font-size:13px}}
+@media(prefers-reduced-motion:reduce){.product-page{transition:none}}
