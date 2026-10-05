@@ -26,18 +26,26 @@ const format=value=>number.format(value).replace(/[\u202f\u00a0]/g,' ');
 const statusLabels={low:'Kam qolgan',zero:'Tugagan',ok:'Yetarli'};
 const status=product=>`<span class="status ${product.status}">${statusLabels[product.status]}</span>`;
 const search=document.getElementById('search');
+const filterLabels = { branch: 'Filial', currency: 'Valyuta', status: 'Qoldiq holati' };
+const emptyFilters = () => ({ branch: '', currency: '', status: '' });
+let filters = emptyFilters();
+let draftFilters = emptyFilters();
+const matchesFilters = product => Object.entries(filters).every(([key, value]) => !value || product[key] === value);
+
 function render(){
   const query=search.value.trim().toLocaleLowerCase('uz');
-  const rows=products.filter(p=>`${p.name} ${p.barcode}`.toLocaleLowerCase('uz').includes(query));
+  const rows=products.filter(p=>`${p.name} ${p.barcode}`.toLocaleLowerCase('uz').includes(query) && matchesFilters(p));
   document.getElementById('result-count').textContent=`${rows.length} ta mahsulot`;
   document.getElementById('table-body').innerHTML=rows.map((p,i)=>`<tr><td>${i+1}</td><td><a class="product-link" href="#product=${p.barcode}" data-product="${p.barcode}">${p.name}</a></td><td>${p.barcode}</td><td>${p.category}</td><td class="numeric">${format(p.quantity)}</td><td>${p.unit}</td><td>${p.currency}</td><td class="numeric">${format(p.price)}</td><td class="numeric">${format(p.quantity*p.price)}</td><td>${p.branch}</td><td>${status(p)}</td></tr>`).join('');
   document.getElementById('cards').innerHTML=rows.map(p=>`<article class="stock-card"><div class="card-head"><h2><a class="product-link" href="#product=${p.barcode}" data-product="${p.barcode}">${p.name}</a></h2><span class="currency">${p.currency}</span></div><dl class="card-values"><div><dt>Qoldiq</dt><dd>${format(p.quantity)} <span class="unit">${p.unit}</span></dd></div><div><dt>Kirish qiymati</dt><dd>${format(p.quantity*p.price)}</dd></div></dl>${p.status!=='ok'?status(p):''}</article>`).join('');
   document.getElementById('empty').hidden=rows.length>0;
   document.querySelector('.table-wrap').hidden=!rows.length;
   document.getElementById('cards').hidden=!rows.length;
+  renderFilterChips();
+  document.getElementById('clear-search').textContent = Object.values(filters).some(Boolean) ? 'Qidiruv va filtrlarni tozalash' : 'Qidiruvni tozalash';
 }
 search.addEventListener('input',render);
-document.getElementById('clear-search').addEventListener('click',()=>{search.value='';render();search.focus()});
+document.getElementById('clear-search').addEventListener('click',()=>{search.value='';filters=emptyFilters();render();search.focus()});
 function closeDrawers(){document.querySelectorAll('.drawer[open]').forEach(dialog=>dialog.close())}
 document.querySelectorAll('[data-open]').forEach(button=>button.addEventListener('click',()=>{
   const dialog=document.getElementById(button.dataset.open);
@@ -49,6 +57,95 @@ document.querySelectorAll('.drawer').forEach(dialog=>{
   dialog.addEventListener('click',event=>{if(event.target!==dialog)return;const rect=dialog.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)dialog.close()});
 });
 document.querySelector('[data-remainder]').addEventListener('click',closeDrawers);
+
+const filterSheet = document.getElementById('filter-sheet');
+const filterTrigger = document.getElementById('filter-trigger');
+const filterFields = document.getElementById('filter-fields');
+const filterOptions = document.getElementById('filter-options');
+const filterChoiceBack = document.getElementById('filter-choice-back');
+const filterFooter = document.getElementById('filter-footer');
+let choosingFilter = null;
+let previousBodyOverflow = '';
+function filterValue(key, value) {
+  return value ? (key === 'status' ? statusLabels[value] : value) : 'Barchasi';
+}
+function renderFilterChips() {
+  const chips = document.getElementById('filter-chips');
+  chips.replaceChildren();
+  const active = Object.entries(filters).filter(([,value]) => value);
+  const badge = document.getElementById('filter-count');
+  badge.hidden = !active.length;
+  badge.textContent = active.length;
+  filterTrigger.setAttribute('aria-label', active.length ? `Filtr, ${active.length} ta faol` : 'Filtr');
+  active.forEach(([key, value]) => {
+    const button = document.createElement('button');
+    button.className = 'filter-chip';
+    const label = `${filterLabels[key]}: ${filterValue(key, value)}`;
+    button.textContent = `${label} ×`;
+    button.setAttribute('aria-label', `${label} filtrini olib tashlash`);
+    button.addEventListener('click', () => { filters[key] = ''; render(); filterTrigger.focus({preventScroll:true}); });
+    chips.append(button);
+  });
+}
+function showFilterFields(focusKey) {
+  choosingFilter = null;
+  document.getElementById('filter-title').textContent = 'Filtr';
+  filterFields.hidden = false;
+  filterOptions.hidden = true;
+  filterChoiceBack.hidden = true;
+  filterFooter.hidden = false;
+  filterFields.replaceChildren();
+  Object.keys(filterLabels).forEach(key => {
+    const button = document.createElement('button');
+    button.className = 'filter-field';
+    button.dataset.field = key;
+    const label = document.createElement('span');
+    label.className = 'filter-label'; label.textContent = filterLabels[key];
+    const value = document.createElement('strong'); value.textContent = filterValue(key, draftFilters[key]);
+    const arrow = document.createElement('span'); arrow.textContent = '›'; arrow.className = 'field-arrow'; arrow.setAttribute('aria-hidden','true');
+    button.append(label, value, arrow);
+    button.addEventListener('click', () => showFilterChoices(key));
+    filterFields.append(button);
+  });
+  if (focusKey) filterFields.querySelector(`[data-field="${focusKey}"]`).focus({preventScroll:true});
+}
+function showFilterChoices(key) {
+  choosingFilter = key;
+  document.getElementById('filter-title').textContent = filterLabels[key];
+  filterFields.hidden = true;
+  filterOptions.hidden = false;
+  filterChoiceBack.hidden = false;
+  filterFooter.hidden = true;
+  const list = document.getElementById('filter-option-list');
+  list.replaceChildren();
+  ['', ...new Set(products.map(product => product[key]))].forEach(value => {
+    const label = document.createElement('label'); label.className = 'filter-option';
+    const input = document.createElement('input'); input.type = 'radio'; input.name = 'filter-choice'; input.value = value;
+    input.checked = draftFilters[key] === value;
+    const text = document.createElement('span'); text.textContent = filterValue(key, value);
+    // Explicit selection commits only to the draft; Escape/close discards it.
+    input.addEventListener('click', () => { draftFilters[key] = value; showFilterFields(key); });
+    label.append(input, text); list.append(label);
+  });
+  list.querySelector('input:checked').focus({preventScroll:true});
+}
+filterTrigger.addEventListener('click', () => {
+  draftFilters = {...filters}; showFilterFields();
+  previousBodyOverflow = document.body.style.overflow;
+  document.body.style.overflow = 'hidden';
+  filterSheet.showModal();
+});
+filterChoiceBack.addEventListener('click', () => showFilterFields(choosingFilter));
+document.getElementById('filter-close').addEventListener('click', () => filterSheet.close());
+document.getElementById('filter-reset').addEventListener('click', () => { draftFilters = emptyFilters(); showFilterFields(); document.getElementById('filter-reset').focus({preventScroll:true}); });
+document.getElementById('filter-apply').addEventListener('click', () => { filters = {...draftFilters}; render(); filterSheet.close(); });
+filterSheet.addEventListener('close', () => { document.body.style.overflow = previousBodyOverflow; filterTrigger.focus({preventScroll:true}); });
+filterSheet.addEventListener('cancel', event => { if (choosingFilter) { event.preventDefault(); showFilterFields(choosingFilter); } });
+filterSheet.addEventListener('click', event => {
+  if (event.target !== filterSheet) return;
+  const rect = filterSheet.getBoundingClientRect();
+  if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) filterSheet.close();
+});
 render();
 
 

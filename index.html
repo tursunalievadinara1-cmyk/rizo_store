@@ -25,19 +25,20 @@
       <div class="sub-tabs"><span class="selected">Qoldiq</span><span>Zaxiralangan mahsulotlar</span></div>
       <div class="toolbar">
         <label class="search"><span data-icon="search"></span><input id="search" type="search" placeholder="Qidirish" aria-label="Mahsulot nomi yoki shtrix-kodi bo‘yicha qidirish" autocomplete="off"></label>
-        <div class="pending-actions" aria-label="Keyingi bosqichda qo‘shiladigan amallar">
-          <button class="outline-button" disabled title="Keyingi bosqichda"><span data-icon="filter"></span>Filtr</button>
+        <div class="pending-actions" aria-label="Ro‘yxat amallari">
+          <button class="outline-button" id="filter-trigger" aria-label="Filtr" aria-haspopup="dialog" aria-controls="filter-sheet"><span data-icon="filter"></span>Filtr<span id="filter-count" hidden></span></button>
           <button class="outline-button" disabled title="Keyingi bosqichda"><span data-icon="export"></span>Eksport</button>
           <button class="outline-button" disabled title="Keyingi bosqichda"><span data-icon="print"></span>Chop etish</button>
         </div>
       </div>
+      <div id="filter-chips" class="filter-chips" aria-label="Faol filtrlar"></div>
       <div class="list-meta"><span id="result-count" role="status" aria-live="polite"></span><span>Sinov ma’lumotlari</span></div>
       <div class="table-wrap" tabindex="0" role="region" aria-label="Qoldiqlar jadvali, gorizontal aylantirish mumkin">
         <table><thead><tr><th scope="col">№</th><th scope="col">Mahsulot nomlari</th><th scope="col">Shtrix-kod</th><th scope="col">Turkum</th><th scope="col" class="numeric">Miqdori</th><th scope="col">O‘lchov birligi</th><th scope="col">Valyuta</th><th scope="col" class="numeric">Kirish narxi</th><th scope="col" class="numeric">Yakuniy kirish qiymati</th><th scope="col">Filial</th><th scope="col">Holat</th></tr></thead><tbody id="table-body"></tbody></table>
       </div>
       <div id="cards" class="cards"></div>
-      <div class="empty" id="empty" hidden><span data-icon="search"></span><h2>Mahsulot topilmadi</h2><p>Boshqa nom yoki shtrix-kodni kiriting.</p><button class="outline-button" id="clear-search">Qidiruvni tozalash</button></div>
-      <p class="stage-note">Ro‘yxat, qidiruv va mahsulot tafsilotlari faol. Filtr, eksport va boshqa bo‘limlar hali ulanmagan.</p>
+      <div class="empty" id="empty" hidden><span data-icon="search"></span><h2>Mahsulot topilmadi</h2><p>Qidiruv yoki filtrlarni o‘zgartiring.</p><button class="outline-button" id="clear-search">Qidiruvni tozalash</button></div>
+      <p class="stage-note">Ro‘yxat, qidiruv, filtr va mahsulot tafsilotlari faol. Eksport va boshqa bo‘limlar hali ulanmagan.</p>
     </main>
   </div>
   <main id="product-page" class="product-page" aria-labelledby="product-title" hidden>
@@ -50,5 +51,16 @@
   </main>
   <dialog id="navigation" class="drawer drawer-left" aria-labelledby="navigation-title"><header class="drawer-header"><h2 id="navigation-title">Menyu</h2><button class="icon-button" data-close aria-label="Menyuni yopish"><span data-icon="close"></span></button></header><nav class="nav-items" aria-label="Mobil navigatsiya"></nav><p class="drawer-note">Hozir Qoldiqlar bo‘limi faol.</p></dialog>
   <dialog id="quick-panel" class="drawer drawer-right" aria-labelledby="quick-title"><header class="drawer-header"><h2 id="quick-title">Tezkor kirish</h2><button class="icon-button" data-close aria-label="Tezkor kirishni yopish"><span data-icon="close"></span></button></header><nav class="quick-list" aria-label="Tezkor kirish"><button disabled><span data-icon="cart"></span><span>Xarid qilish</span><small>Keyin</small></button><button disabled><span data-icon="box"></span><span>Mahsulotlar</span><small>Keyin</small></button><button data-remainder><span data-icon="chart"></span><span>Qoldiq</span></button></nav><p class="drawer-note">Tezkor kirish namunasi</p></dialog>
+  <dialog id="filter-sheet" class="filter-sheet" aria-labelledby="filter-title">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <header class="sheet-header">
+      <button id="filter-choice-back" class="icon-button" aria-label="Filtrga qaytish" hidden><span data-icon="back"></span></button>
+      <h2 id="filter-title">Filtr</h2>
+      <button id="filter-close" class="icon-button" aria-label="Filtrni yopish"><span data-icon="close"></span></button>
+    </header>
+    <div id="filter-fields" class="filter-fields"></div>
+    <fieldset id="filter-options" class="filter-options" hidden><legend class="sr-only">Qiymatni tanlang</legend><div id="filter-option-list"></div></fieldset>
+    <footer id="filter-footer" class="sheet-footer"><button id="filter-reset" class="outline-button">Tozalash</button><button id="filter-apply" class="primary-button">Qo‘llash</button></footer>
+  </dialog>
 </body>
 </html>
