@@ -16,7 +16,9 @@ document.querySelectorAll('.nav-items').forEach(container=>{
   navigation.forEach(([label,glyph])=>{
     const button=document.createElement('button');button.className='nav-item';
     button.innerHTML=`<span data-icon="${glyph}">${icon(glyph)}</span><span>${label}</span>`;
-    if(label==='Hisobotlar'){button.setAttribute('aria-current','page');button.addEventListener('click',closeDrawers)}
+    if(label==='Hisobotlar' || label==='Bosh sahifa'){
+      button.dataset.route = label==='Bosh sahifa' ? 'home' : 'reports';
+    }
     else{button.disabled=true;button.title='Bu bosqichda ulanmagan'}
     container.append(button);
   });
@@ -56,7 +58,7 @@ document.querySelectorAll('.drawer').forEach(dialog=>{
   dialog.addEventListener('close',()=>{document.body.style.overflow='';document.querySelectorAll(`[data-open="${dialog.id}"]`).forEach(button=>button.setAttribute('aria-expanded','false'))});
   dialog.addEventListener('click',event=>{if(event.target!==dialog)return;const rect=dialog.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)dialog.close()});
 });
-document.querySelector('[data-remainder]').addEventListener('click',closeDrawers);
+document.querySelector('[data-remainder]').addEventListener('click',()=>navigate('reports'));
 
 const filterSheet = document.getElementById('filter-sheet');
 const filterTrigger = document.getElementById('filter-trigger');
@@ -154,10 +156,13 @@ const productPage = document.getElementById('product-page');
 const workspace = document.getElementById('workspace');
 const detailContent = document.getElementById('detail-content');
 const detailBack = document.getElementById('detail-back');
-const listTitle = document.title;
+const dashboard = document.getElementById('dashboard');
+const reportsPage = document.getElementById('main');
+let activeView = null;
 let activeProduct = null;
-let listPosition = 0;
-let returnFocus = null;
+let detailOrigin = 'reports';
+const viewPositions = { home: 0, reports: 0 };
+const viewFocus = { home: null, reports: null };
 let returning = false;
 history.scrollRestoration = 'manual';
 
@@ -172,10 +177,9 @@ function field(label, value) {
 }
 function showProduct(product) {
   if (activeProduct === product.barcode) return;
-  if (!activeProduct) {
-    listPosition = window.scrollY;
-    returnFocus = document.activeElement;
-  }
+  if (!activeProduct) rememberView();
+  detailOrigin = history.state?.rizoFrom === 'home' ? 'home' : (history.state?.rizoFrom === 'reports' ? 'reports' : activeView || 'reports');
+  detailBack.setAttribute('aria-label', detailOrigin === 'home' ? 'Bosh sahifaga qaytish' : 'Qoldiqlarga qaytish');
   activeProduct = product.barcode;
   const summary = document.createElement('section');
   summary.className = 'detail-summary';
@@ -208,22 +212,56 @@ function showProduct(product) {
   window.scrollTo(0, 0);
   summary.querySelector('h1').focus({ preventScroll: true });
 }
+function rememberView() {
+  if (!activeView || activeProduct) return;
+  viewPositions[activeView] = window.scrollY;
+  viewFocus[activeView] = document.activeElement;
+}
+function navigate(view, stockStatus) {
+  closeDrawers();
+  if (stockStatus !== undefined) {
+    search.value = '';
+    filters = {...emptyFilters(), status: stockStatus};
+    render();
+    viewPositions.reports = 0;
+  }
+  if (activeView === view && !activeProduct) {
+    if (stockStatus !== undefined) {
+      window.scrollTo(0, 0);
+      document.getElementById('reports-title').focus({preventScroll: true});
+    }
+    return;
+  }
+  history.pushState(null, '', `#${view}`);
+  syncRoute();
+}
 function syncRoute() {
   returning = false;
   const code = new URLSearchParams(location.hash.slice(1)).get('product');
   const product = products.find(item => item.barcode === code);
   if (product) { showProduct(product); return; }
-  if (code) history.replaceState(null, '', location.pathname + location.search);
-  if (!activeProduct) return;
+  if (code) history.replaceState(null, '', '#reports');
+  const view = location.hash === '#reports' ? 'reports' : 'home';
+  const fromDetail = Boolean(activeProduct);
+  if (!fromDetail && activeView === view) return;
+  rememberView();
   activeProduct = null;
+  activeView = view;
   productPage.hidden = true;
   workspace.hidden = false;
-  document.title = listTitle;
-  window.scrollTo(0, listPosition);
-  if (returnFocus?.isConnected && returnFocus !== document.body) {
-    returnFocus.focus({ preventScroll: true });
+  dashboard.hidden = view !== 'home';
+  reportsPage.hidden = view !== 'reports';
+  document.title = `${view === 'home' ? 'Bosh sahifa' : 'Qoldiq'} · Rizo Store`;
+  document.querySelectorAll('.nav-item[data-route]').forEach(button => {
+    if (button.dataset.route === view) button.setAttribute('aria-current', 'page');
+    else button.removeAttribute('aria-current');
+  });
+  window.scrollTo(0, viewPositions[view]);
+  const focus = viewFocus[view];
+  if (fromDetail && focus?.isConnected && focus !== document.body && !focus.closest('[hidden]')) {
+    focus.focus({preventScroll: true});
   } else {
-    search.focus({ preventScroll: true });
+    document.getElementById(view === 'home' ? 'home-title' : 'reports-title').focus({preventScroll: true});
   }
 }
 function goBack() {
@@ -231,15 +269,22 @@ function goBack() {
   returning = true;
   if (history.state?.rizoDetail) history.back();
   else {
-    history.replaceState(null, '', location.pathname + location.search);
+    history.replaceState(null, '', `#${detailOrigin}`);
     syncRoute();
   }
 }
 document.addEventListener('click', event => {
+  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  const route = event.target.closest('[data-route]');
+  if (route) {
+    event.preventDefault();
+    navigate(route.dataset.route, route.dataset.stockStatus);
+    return;
+  }
   const link = event.target.closest('a[data-product]');
-  if (!link || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  if (!link) return;
   event.preventDefault();
-  history.pushState({ rizoDetail: true }, '', link.getAttribute('href'));
+  history.pushState({ rizoDetail: true, rizoFrom: activeView || 'reports' }, '', link.getAttribute('href'));
   syncRoute();
 });
 detailBack.addEventListener('click', goBack);
@@ -279,3 +324,26 @@ productPage.addEventListener('pointerup', event => {
 productPage.addEventListener('pointercancel', resetSwipe);
 window.addEventListener('popstate', resetSwipe);
 syncRoute();
+
+// Deliberately fixed sample sales; these are not live business totals.
+function renderHome() {
+  const sales = { total: 4850000, receipts: 12, currency: 'UZS' };
+  const metrics = [
+    ['Bugungi savdo', sales.total, sales.currency],
+    ['Cheklar', sales.receipts, 'ta'],
+    ['O‘rtacha chek', Math.round(sales.total / sales.receipts), sales.currency],
+  ];
+  document.getElementById('home-metrics').innerHTML = metrics.map(([label, value, unit]) =>
+    `<dl class="metric-card"><dt>${label}</dt><dd>${format(value)} <span class="metric-unit">${unit}</span></dd></dl>`
+  ).join('');
+  const attention = products.filter(product => product.status === 'low' || product.status === 'zero');
+  document.getElementById('attention-count').textContent = `${attention.length} ta mahsulot`;
+  document.getElementById('attention-empty').hidden = attention.length > 0;
+  document.getElementById('attention-list').innerHTML = attention.map(product =>
+    `<a class="attention-card" href="#product=${product.barcode}" data-product="${product.barcode}">
+      <div class="attention-top">${status(product)}<span class="attention-quantity">${format(product.quantity)} ${product.unit}</span></div>
+      <h3>${product.name}</h3><p>${product.branch}</p>
+    </a>`
+  ).join('');
+}
+renderHome();

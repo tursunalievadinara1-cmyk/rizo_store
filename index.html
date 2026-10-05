@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Rizo Store · Qoldiqlar prototipi</title>
+  <title>Bosh sahifa · Rizo Store</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800;900&display=swap">
   <link rel="stylesheet" href="styles.css">
   <script src="app.js" defer></script>
@@ -12,13 +12,31 @@
   <div id="workspace">
     <header class="topbar">
       <button class="icon-button mobile-menu" data-open="navigation" aria-label="Menyu" aria-controls="navigation" aria-expanded="false"><span data-icon="menu"></span></button>
-      <a class="brand" href="./index.html" aria-label="Rizo Store — Qoldiqlar"><b>RiZO</b><span>STORE</span></a>
+      <a class="brand" href="#home" data-route="home" aria-label="Rizo Store — Bosh sahifa"><b>RiZO</b><span>STORE</span></a>
       <span class="prototype-label">Frontend prototip · sinov ma’lumotlari</span>
       <button class="icon-button quick-trigger" data-open="quick-panel" aria-label="Tezkor kirish" aria-controls="quick-panel" aria-expanded="false"><span data-icon="grid"></span></button>
     </header>
     <aside class="desktop-sidebar" aria-label="Asosiy navigatsiya"><div class="nav-items"></div><div class="sidebar-foot">Frontend prototip</div></aside>
-    <main id="main">
-      <div class="title-row"><h1>Qoldiq</h1><span class="sample-badge">Namuna</span></div>
+    <main id="dashboard" aria-labelledby="home-title" hidden>
+      <div class="title-row"><h1 id="home-title" tabindex="-1">Bosh sahifa</h1><span class="sample-badge">Namuna</span></div>
+      <p class="home-intro">Bugungi ko‘rsatkichlar · sinov ma’lumotlari</p>
+      <section class="home-metrics" aria-label="Bugungi savdo ko‘rsatkichlari" id="home-metrics"></section>
+      <section class="home-section" aria-labelledby="actions-title">
+        <h2 id="actions-title">Tezkor amallar</h2>
+        <div class="home-actions">
+          <a class="home-action" href="#reports" data-route="reports" data-stock-status=""><span class="action-icon" data-icon="chart"></span><span><strong>Qoldiqlar</strong><small>Barcha mahsulotlar</small></span><span class="action-arrow" aria-hidden="true">›</span></a>
+          <a class="home-action" href="#reports" data-route="reports" data-stock-status="low"><span class="action-icon" data-icon="box"></span><span><strong>Kam qolgan</strong><small>Zaxirani tekshirish</small></span><span class="action-arrow" aria-hidden="true">›</span></a>
+          <a class="home-action" href="#reports" data-route="reports" data-stock-status="zero"><span class="action-icon" data-icon="box"></span><span><strong>Tugagan</strong><small>Qoldig‘i yo‘q mahsulotlar</small></span><span class="action-arrow" aria-hidden="true">›</span></a>
+        </div>
+      </section>
+      <section class="home-section" aria-labelledby="attention-title">
+        <div class="section-heading"><h2 id="attention-title">E’tibor talab qiladi</h2><span id="attention-count"></span></div>
+        <div class="attention-list" id="attention-list"></div>
+        <p class="home-empty" id="attention-empty" hidden>Hozircha kam qolgan yoki tugagan mahsulot yo‘q.</p>
+      </section>
+    </main>
+    <main id="main" aria-labelledby="reports-title" hidden>
+      <div class="title-row"><h1 id="reports-title" tabindex="-1">Qoldiq</h1><span class="sample-badge">Namuna</span></div>
       <nav class="report-tabs" aria-label="Hisobotlar">
         <span class="selected" aria-current="page">Qoldiqlar</span><span>Sotib olish</span><span>Mahsulot bo‘yicha sotish</span><span>Qaytish</span><span>Yalpi daromad</span><span>Keshbek</span><span>Kassa</span>
       </nav>
@@ -38,7 +56,7 @@
       </div>
       <div id="cards" class="cards"></div>
       <div class="empty" id="empty" hidden><span data-icon="search"></span><h2>Mahsulot topilmadi</h2><p>Qidiruv yoki filtrlarni o‘zgartiring.</p><button class="outline-button" id="clear-search">Qidiruvni tozalash</button></div>
-      <p class="stage-note">Ro‘yxat, qidiruv, filtr va mahsulot tafsilotlari faol. Eksport va boshqa bo‘limlar hali ulanmagan.</p>
+      <p class="stage-note">Bosh sahifa, qidiruv, filtr va mahsulot tafsilotlari faol. Eksport va boshqa bo‘limlar hali ulanmagan.</p>
     </main>
   </div>
   <main id="product-page" class="product-page" aria-labelledby="product-title" hidden>
@@ -49,7 +67,7 @@
     </header>
     <div class="detail-content" id="detail-content"></div>
   </main>
-  <dialog id="navigation" class="drawer drawer-left" aria-labelledby="navigation-title"><header class="drawer-header"><h2 id="navigation-title">Menyu</h2><button class="icon-button" data-close aria-label="Menyuni yopish"><span data-icon="close"></span></button></header><nav class="nav-items" aria-label="Mobil navigatsiya"></nav><p class="drawer-note">Hozir Qoldiqlar bo‘limi faol.</p></dialog>
+  <dialog id="navigation" class="drawer drawer-left" aria-labelledby="navigation-title"><header class="drawer-header"><h2 id="navigation-title">Menyu</h2><button class="icon-button" data-close aria-label="Menyuni yopish"><span data-icon="close"></span></button></header><nav class="nav-items" aria-label="Mobil navigatsiya"></nav><p class="drawer-note">Bosh sahifa va Hisobotlar bo‘limlari faol.</p></dialog>
   <dialog id="quick-panel" class="drawer drawer-right" aria-labelledby="quick-title"><header class="drawer-header"><h2 id="quick-title">Tezkor kirish</h2><button class="icon-button" data-close aria-label="Tezkor kirishni yopish"><span data-icon="close"></span></button></header><nav class="quick-list" aria-label="Tezkor kirish"><button disabled><span data-icon="cart"></span><span>Xarid qilish</span><small>Keyin</small></button><button disabled><span data-icon="box"></span><span>Mahsulotlar</span><small>Keyin</small></button><button data-remainder><span data-icon="chart"></span><span>Qoldiq</span></button></nav><p class="drawer-note">Tezkor kirish namunasi</p></dialog>
   <dialog id="filter-sheet" class="filter-sheet" aria-labelledby="filter-title">
     <div class="sheet-handle" aria-hidden="true"></div>
