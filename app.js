@@ -191,7 +191,7 @@ function sortReportRows(rows,definitions,selection,history=false){
 }
 function sortHeader(key,label,context,interactive=true){
   if(!interactive||['rowNumber','№'].includes(key))return `<th scope="col">${label}</th>`;
-  const selected=context==='goods'?goodsSort:context==='invoice'?invoiceSort:context==='report'?reportSorts[stockTab]:historySorts[activeHistoryMode];const current=selected?.key===key;
+  const selected=context==='invoice-item'?invoiceItemView().sort:context==='goods'?goodsSort:context==='invoice'?invoiceSort:context==='report'?reportSorts[stockTab]:historySorts[activeHistoryMode];const current=selected?.key===key;
   return `<th scope="col" aria-sort="${current?(selected.direction==='asc'?'ascending':'descending'):'none'}"><button class="table-sort" data-sort-key="${key}" data-sort-context="${context}" aria-label="${label} bo‘yicha saralash">${label}<span aria-hidden="true">${icon(current?(selected.direction==='asc'?'arrowUp':'arrowDown'):'sort')}</span></button></th>`;
 }
 function activeStockFilters(){const defaults=emptyFilters();return Object.entries(filters).filter(([key,value])=>!['target','rate'].includes(key)&&value!==defaults[key]);}
@@ -247,11 +247,11 @@ try{Object.assign(historyColumnProfiles,JSON.parse(localStorage.getItem('rizo-hi
 function reportActionData(){if(stockTab==='reserved')return {title:'Zaxiralangan mahsulotlar',rows:filteredReservedRows(),columns:reservedColumns.map(key=>reservedColumnDefs.find(([id])=>id===key)),table:reservedTableMarkup,totals:reservedTotalsMarkup};return {title:'Qoldiq',rows:filteredStockRows(),columns:selectedStockColumns(),table:stockTableMarkup,totals:stockTotalsMarkup};}
 function openStockDialog(dialog){if(dialog===stockPrintPreview){document.querySelector('#stock-print-preview>.choice-note').textContent='Tanlangan ustunlar va filtrga mos barcha qatorlar. Qog‘oz yo‘nalishi: albom.';document.getElementById('label-print-page').textContent='';}stockDialogOverflow=document.body.style.overflow;document.body.style.overflow='hidden';dialog.showModal();}
 [stockColumnsSheet,stockPrintPreview].forEach(dialog=>{dialog.querySelector('[data-close-stock-dialog]').addEventListener('click',()=>dialog.close());dialog.addEventListener('close',()=>{document.body.style.overflow=stockDialogOverflow;});dialog.addEventListener('click',event=>{if(event.target!==dialog)return;const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close();});});
-function currentColumnDefs(){if(columnContext==='goods')return goodsColumnDefs;if(columnContext==='invoice')return invoiceColumnDefs;if(columnContext==='history')return historyColumnDefinitions(activeHistoryMode);return stockTab==='reserved'?reservedColumnDefs:stockColumnDefs;}
-function currentColumns(){if(columnContext==='goods')return goodsColumns;if(columnContext==='invoice')return invoiceColumns;if(columnContext==='history')return selectedHistoryColumns(activeHistoryMode);return stockTab==='reserved'?reservedColumns:stockColumns;}
+function currentColumnDefs(){if(columnContext==='invoice-item')return invoiceItemDefs;if(columnContext==='goods')return goodsColumnDefs;if(columnContext==='invoice')return invoiceColumnDefs;if(columnContext==='history')return historyColumnDefinitions(activeHistoryMode);return stockTab==='reserved'?reservedColumnDefs:stockColumnDefs;}
+function currentColumns(){if(columnContext==='invoice-item')return invoiceItemColumns;if(columnContext==='goods')return goodsColumns;if(columnContext==='invoice')return invoiceColumns;if(columnContext==='history')return selectedHistoryColumns(activeHistoryMode);return stockTab==='reserved'?reservedColumns:stockColumns;}
 function renderStockColumnChoices(){const list=document.getElementById('stock-columns-list');list.replaceChildren();stockColumnDraft.forEach((item,index)=>{const line=document.createElement('div');line.className='column-choice';const label=document.createElement('label');const input=document.createElement('input');input.type='checkbox';input.checked=item.visible;input.disabled=item.key==='invoiceId'||item.key==='name'||item.key==='Mahsulot nomi';input.addEventListener('change',()=>item.visible=input.checked);const name=document.createElement('span');name.textContent=currentColumnDefs().find(([key])=>key===item.key)[1];label.append(input,name);line.append(label);[['arrowUp',-1,'Yuqoriga'],['arrowDown',1,'Pastga']].forEach(([symbol,offset,title])=>{const button=document.createElement('button');button.className='icon-button';button.innerHTML=icon(symbol);button.setAttribute('aria-label',`${name.textContent}: ${title}`);button.disabled=index+offset<0||index+offset>=stockColumnDraft.length;button.addEventListener('click',()=>{[stockColumnDraft[index],stockColumnDraft[index+offset]]=[stockColumnDraft[index+offset],stockColumnDraft[index]];renderStockColumnChoices();const moved=list.children[index+offset];moved?.querySelector('input')?.focus({preventScroll:true});animateUI(moved,[{translate:`0 ${-offset*12}px`,opacity:.6},{translate:'0 0',opacity:1}],180);});line.append(button);});list.append(line);});}
 document.getElementById('stock-columns-reset').addEventListener('click',()=>{stockColumnDraft=currentColumnDefs().map(([key])=>({key,visible:true}));renderStockColumnChoices();});
-document.getElementById('stock-columns-apply').addEventListener('click',()=>{const selected=stockColumnDraft.filter(c=>c.visible).map(c=>c.key);if(columnContext==='goods'){goodsColumns=selected;try{localStorage.setItem('rizo-goods-columns-v1',JSON.stringify(selected));}catch{}renderGoods();stockColumnsSheet.close();return;}if(columnContext==='invoice'){invoiceColumns=selected;try{localStorage.setItem('rizo-invoice-columns-v1',JSON.stringify(selected));}catch{}renderInvoices();stockColumnsSheet.close();return;}if(columnContext==='history'){historyColumnProfiles[activeHistoryMode]=selected;try{localStorage.setItem('rizo-history-columns',JSON.stringify(historyColumnProfiles));}catch{}refreshHistory();stockColumnsSheet.close();return;}if(stockTab==='reserved')reservedColumns=selected;else stockColumns=selected;try{localStorage.setItem(stockTab==='reserved'?'rizo-reserved-columns-v2':'rizo-stock-columns-v2',JSON.stringify(selected));}catch{}render();stockColumnsSheet.close();});
+document.getElementById('stock-columns-apply').addEventListener('click',()=>{const selected=stockColumnDraft.filter(c=>c.visible).map(c=>c.key);if(columnContext==='invoice-item'){invoiceItemColumns=selected;try{localStorage.setItem('rizo-invoice-item-columns-v1',JSON.stringify(selected));}catch{}renderInvoiceItems();stockColumnsSheet.close();return;}if(columnContext==='goods'){goodsColumns=selected;try{localStorage.setItem('rizo-goods-columns-v1',JSON.stringify(selected));}catch{}renderGoods();stockColumnsSheet.close();return;}if(columnContext==='invoice'){invoiceColumns=selected;try{localStorage.setItem('rizo-invoice-columns-v1',JSON.stringify(selected));}catch{}renderInvoices();stockColumnsSheet.close();return;}if(columnContext==='history'){historyColumnProfiles[activeHistoryMode]=selected;try{localStorage.setItem('rizo-history-columns',JSON.stringify(historyColumnProfiles));}catch{}refreshHistory();stockColumnsSheet.close();return;}if(stockTab==='reserved')reservedColumns=selected;else stockColumns=selected;try{localStorage.setItem(stockTab==='reserved'?'rizo-reserved-columns-v2':'rizo-stock-columns-v2',JSON.stringify(selected));}catch{}render();stockColumnsSheet.close();});
 function csvCell(value){if(typeof value==='number')return String(value);let text=String(value??'');if(/^[\s]*[=+@-]/.test(text))text=`'${text}`;return `"${text.replaceAll('"','""')}"`;}
 function reportCSV(data){return '\uFEFF'+[data.columns.map(([,label])=>csvCell(label)).join(','),...data.rows.map((row,index)=>data.columns.map(([, ,value])=>csvCell(value(row,index))).join(','))].join('\r\n');}
 function performStockAction(action){
@@ -266,9 +266,9 @@ document.getElementById('stock-print-confirm').addEventListener('click',()=>wind
 document.addEventListener('click',event=>{const action=event.target.closest('[data-stock-action]');if(action){performStockAction(action.dataset.stockAction);return;}const page=event.target.closest('[data-stock-page]');if(page){stockPageNumber=Number(page.dataset.stockPage);render();document.getElementById('reports-title').focus({preventScroll:true});window.scrollTo(0,0);}});
 
 const sortSheet=document.getElementById('sort-sheet');let sortOverflow='';
-function currentSort(){if(sortContext==='goods')return goodsSort;if(sortContext==='invoice')return invoiceSort;return sortContext==='history'?(historySorts[activeHistoryMode]||{key:'',direction:'desc'}):reportSorts[stockTab];}
-function setSort(key,direction){const selected={key,direction};if(sortContext==='goods'){goodsSort=selected;resetGoodsPage();return;}if(sortContext==='invoice'){invoiceSort=selected;resetInvoicePage();}else if(sortContext==='history'){historySorts[activeHistoryMode]=selected;refreshHistory();}else{reportSorts[stockTab]=selected;resetStockPage();}}
-function renderSortOptions(){const selected=currentSort(),defs=sortContext==='goods'?goodsColumnDefs:sortContext==='invoice'?invoiceColumnDefs:sortContext==='history'?historyColumnDefinitions(activeHistoryMode):(stockTab==='reserved'?reservedColumnDefs:stockColumnDefs);const list=document.getElementById('sort-options');list.replaceChildren();[['','Asl tartib'],...defs.filter(([key])=>!['rowNumber','№','labels'].includes(key))].forEach(([key,label])=>{const button=document.createElement('button');button.className='report-choice';button.textContent=label;button.setAttribute('aria-pressed',String(selected.key===key));if(selected.key===key)button.insertAdjacentHTML('beforeend','<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>');button.addEventListener('click',()=>{setSort(key,currentSort().direction);sortSheet.close();});list.append(button);});document.querySelectorAll('[data-sort-direction]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.sortDirection===selected.direction)));}
+function currentSort(){if(sortContext==='invoice-item')return invoiceItemView().sort;if(sortContext==='goods')return goodsSort;if(sortContext==='invoice')return invoiceSort;return sortContext==='history'?(historySorts[activeHistoryMode]||{key:'',direction:'desc'}):reportSorts[stockTab];}
+function setSort(key,direction){const selected={key,direction};if(sortContext==='invoice-item'){invoiceItemView().sort=selected;invoiceItemView().page=1;renderInvoiceItems();return;}if(sortContext==='goods'){goodsSort=selected;resetGoodsPage();return;}if(sortContext==='invoice'){invoiceSort=selected;resetInvoicePage();}else if(sortContext==='history'){historySorts[activeHistoryMode]=selected;refreshHistory();}else{reportSorts[stockTab]=selected;resetStockPage();}}
+function renderSortOptions(){const selected=currentSort(),defs=sortContext==='invoice-item'?invoiceItemDefs:sortContext==='goods'?goodsColumnDefs:sortContext==='invoice'?invoiceColumnDefs:sortContext==='history'?historyColumnDefinitions(activeHistoryMode):(stockTab==='reserved'?reservedColumnDefs:stockColumnDefs);const list=document.getElementById('sort-options');list.replaceChildren();[['','Asl tartib'],...defs.filter(([key])=>!['rowNumber','№','labels'].includes(key))].forEach(([key,label])=>{const button=document.createElement('button');button.className='report-choice';button.textContent=label;button.setAttribute('aria-pressed',String(selected.key===key));if(selected.key===key)button.insertAdjacentHTML('beforeend','<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>');button.addEventListener('click',()=>{setSort(key,currentSort().direction);sortSheet.close();});list.append(button);});document.querySelectorAll('[data-sort-direction]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.sortDirection===selected.direction)));}
 function openSortSheet(context){sortContext=context;renderSortOptions();sortOverflow=document.body.style.overflow;document.body.style.overflow='hidden';sortSheet.showModal();}
 document.getElementById('sort-close').addEventListener('click',()=>sortSheet.close());sortSheet.addEventListener('close',()=>{document.body.style.overflow=sortOverflow;});sortSheet.addEventListener('click',event=>{if(event.target!==sortSheet)return;const r=sortSheet.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)sortSheet.close();});
 document.addEventListener('click',event=>{const open=event.target.closest('[data-sort-open]');if(open){openSortSheet(open.dataset.sortOpen);return;}const direction=event.target.closest('[data-sort-direction]');if(direction){setSort(currentSort().key,direction.dataset.sortDirection);renderSortOptions();return;}const header=event.target.closest('[data-sort-key]');if(header){sortContext=header.dataset.sortContext;const selected=currentSort();setSort(header.dataset.sortKey,selected.key===header.dataset.sortKey&&selected.direction==='desc'?'asc':'desc');}});
@@ -629,14 +629,14 @@ function navigate(view, stockStatus) {
 }
 function syncRoute() {
   const wasLabels = Boolean(activeLabels);
-  const before = {goods:activeGoods, view: activeView, product: activeProduct, entry: activePurchase, mode: activeHistoryMode, invoice: activeInvoice, reservation: activeReservation};
+  const before = {invoiceLine:activeInvoiceLine,goods:activeGoods, view: activeView, product: activeProduct, entry: activePurchase, mode: activeHistoryMode, invoice: activeInvoice, reservation: activeReservation};
   applyRoute();
-  const changed = before.goods !== activeGoods || wasLabels !== Boolean(activeLabels) || before.reservation !== activeReservation || before.invoice !== activeInvoice || before.view !== activeView || before.product !== activeProduct || before.entry !== activePurchase || before.mode !== activeHistoryMode;
+  const changed = before.invoiceLine !== activeInvoiceLine || before.goods !== activeGoods || wasLabels !== Boolean(activeLabels) || before.reservation !== activeReservation || before.invoice !== activeInvoice || before.view !== activeView || before.product !== activeProduct || before.entry !== activePurchase || before.mode !== activeHistoryMode;
   if (!changed) return;
   // Cancel outgoing motion so fast navigation never leaves a stale effect.
   motionAnimations.forEach(animation => animation.cancel());
   const historyOnly = activeProduct && before.product === activeProduct && !before.entry && !activePurchase && before.mode !== activeHistoryMode;
-  const backwards = (before.goods && !activeGoods) || (wasLabels && !activeLabels) || (before.reservation && !activeReservation) || (before.invoice && !activeInvoice) || (before.entry && !activePurchase) || (before.product && !activeProduct) || (!before.product && before.view === 'reports' && activeView === 'home');
+  const backwards = (before.invoiceLine && !activeInvoiceLine) || (before.goods && !activeGoods) || (wasLabels && !activeLabels) || (before.reservation && !activeReservation) || (before.invoice && !activeInvoice) || (before.entry && !activePurchase) || (before.product && !activeProduct) || (!before.product && before.view === 'reports' && activeView === 'home');
   const target = activeGoods ? detailContent : activeReservation ? detailContent : activeInvoice ? detailContent : activeProduct ? (historyOnly ? detailContent.querySelector('.purchase-history') : detailContent) : activeView === 'home' ? dashboard : activeView === 'invoices' ? invoicePage : activeView==='purchase-goods'?goodsPage:reportsPage;
   enterContent(target, backwards ? -1 : 1, historyOnly ? 12 : 24);
 }
@@ -669,7 +669,8 @@ function applyRoute() {
   const invoiceId = new URLSearchParams(location.hash.slice(1)).get('invoice');
   const invoice = invoices.find(item => item.id === invoiceId);
   if (invoice && new URLSearchParams(location.hash.slice(1)).get('labels')==='1') { showLabels(invoice); return; }
-  if (invoice) { if(leavingLabels)activeInvoice=null;showInvoice(invoice); return; }
+  if (invoice) { if(leavingLabels)activeInvoice=null;showInvoice(invoice,new URLSearchParams(location.hash.slice(1)).get('line')); return; }
+  activeInvoiceLine=null;
   if (invoiceId) history.replaceState(null, '', '#invoices');
   const code = new URLSearchParams(location.hash.slice(1)).get('product');
   const originalProduct = products.find(item => item.barcode === code);
@@ -720,6 +721,7 @@ function goBack() {
   if(activeGoods){if(returning)return;returning=true;if(history.state?.rizoGoods)history.back();else{history.replaceState(null,'','#purchase-goods');syncRoute();}return;}
   if(activeLabels){if(returning)return;returning=true;if(history.state?.rizoLabels)history.back();else{history.replaceState(null,'',`#invoice=${activeLabels}`);syncRoute();}return;}
   if(activeReservation){if(returning)return;returning=true;if(history.state?.rizoReservation)history.back();else{history.replaceState(null,'','#reserved');syncRoute();}return;}
+  if(activeInvoiceLine){if(returning)return;returning=true;if(history.state?.rizoInvoiceLine)history.back();else{history.replaceState(null,'',`#invoice=${activeInvoice}`);syncRoute();}return;}
   if (activeInvoice) {
     if (returning) return;
     returning = true;
@@ -754,6 +756,8 @@ document.addEventListener('click', event => {
     navigate(route.dataset.route, route.dataset.stockStatus);
     return;
   }
+  const invoiceLineLink=event.target.closest('a[data-invoice-line]');
+  if(invoiceLineLink){event.preventDefault();Object.assign(invoiceItemView(),{scroll:window.scrollY,focusLine:invoiceLineLink.dataset.invoiceLine});history.pushState({rizoInvoiceLine:true},'',invoiceLineLink.getAttribute('href'));syncRoute();return;}
   const goodsLink=event.target.closest('a[data-goods]');
   if(goodsLink){event.preventDefault();history.pushState({rizoGoods:true},'',goodsLink.getAttribute('href'));syncRoute();return;}
   const reservedLink=event.target.closest('a[data-reservation]');
@@ -932,6 +936,47 @@ const invoices = [
 ];
 // Extra sample invoices exercise more than one ten-row page.
 invoices.push(...Array.from({length:7},(_,index)=>({...invoices[index%5],id:`NAM-10${String(index+6).padStart(2,'0')}`,date:`2026-09-${String(20-index).padStart(2,'0')}`,time:'10:30'})));
+// One synthetic source feeds invoice contents, totals and price labels.
+const invoiceItemsById = Object.fromEntries(invoices.map((invoice,index)=>{
+  const indices=invoice.id==='NAM-1004'?[]:invoice.currency==='USD'?[4,4]:index===0?[0,2,5,1,3,0,2,1,3,0,2,1]:[2,5,0];
+  return [invoice.id,indices.map((productIndex,lineIndex)=>{
+    const product=products[productIndex],large=index===2&&lineIndex===1;
+    const quantity=large?3000:lineIndex===0?12:lineIndex+2;
+    const cost=index===2&&lineIndex===2?0:product.price;
+    const sale=cost===0?0:product.salePrice;
+    return {...product,id:`LINE-${lineIndex+1}`,barcode:sampleEAN(productIndex),ean:sampleEAN(productIndex),currency:invoice.currency,quantity,cost,wholesale:cost*1.05,sale,vat:'Yo‘q',entryTotal:quantity*cost,finalTotal:quantity*sale,batch:`NAM-${index+1}-${lineIndex+1}`,name:index===2&&lineIndex===0?'Namuna-UzunMahsulotNomi'.repeat(6):product.name};
+  })];
+}));
+const invoiceItemDefs=[['variant','Variatsiya',p=>p.variant||'—'],['name','Mahsulot nomlari',p=>p.name],['barcode','Shtrix-kod',p=>p.barcode],['category','Turkum',p=>p.category],['unit','O‘lchov birligi',p=>p.unit],['quantity','Miqdori',p=>p.quantity],['cost','Kirish narxi',p=>p.cost],['wholesale','Ulgurji narx',p=>p.wholesale],['sale','Narx farqi',p=>p.sale],['vat','QQSni qo‘llash',p=>p.vat],['entryTotal','Yakuniy kirish narxi',p=>p.entryTotal],['finalTotal','Yakuniy narx',p=>p.finalTotal],['batch','Ishlab chiqarish raqami',p=>p.batch||'—']];
+let invoiceItemColumns=invoiceItemDefs.map(([key])=>key),activeInvoiceLine=null;
+const invoiceItemViews=new Map();
+try{const saved=JSON.parse(localStorage.getItem('rizo-invoice-item-columns-v1'));if(Array.isArray(saved)&&saved.includes('name'))invoiceItemColumns=[...new Set(saved.filter(key=>invoiceItemDefs.some(([id])=>id===key)))];}catch{}
+function invoiceItemView(id=activeInvoice){if(!invoiceItemViews.has(id))invoiceItemViews.set(id,{page:1,sort:{key:'',direction:'desc'},scroll:0,focusLine:null});return invoiceItemViews.get(id);}
+function invoiceItems(id){return invoiceItemsById[id]||[];}
+function invoiceItemTotals(rows){const entry=rows.reduce((sum,p)=>sum+p.entryTotal,0),sale=rows.reduce((sum,p)=>sum+p.finalTotal,0);return {entry,sale,difference:sale-entry};}
+function invoiceItemTotalsMarkup(invoice){const t=invoiceItemTotals(invoiceItems(invoice.id));return [['Yakuniy kirish narxi',t.entry],['Savdolarning umumiy miqdori',t.sale],['Umumiy farq',t.difference]].map(([label,value])=>`<div><dt>${label}</dt><dd>${money(value,invoice.currency)}</dd></div>`).join('');}
+function sortedInvoiceItems(id=activeInvoice){return sortReportRows(invoiceItems(id),invoiceItemDefs,invoiceItemView(id).sort);}
+function invoiceItemTable(rows,invoice,links=true){const columns=invoiceItemColumns.map(key=>invoiceItemDefs.find(([id])=>id===key));return `<table><thead><tr>${columns.map(([key,label])=>sortHeader(key,label,'invoice-item',links)).join('')}</tr></thead><tbody>${rows.map(p=>`<tr>${columns.map(([key,,value])=>`<td data-invoice-item-column="${key}" class="${typeof value(p)==='number'?'numeric':''}">${key==='name'&&links?`<a class="product-link" data-invoice-line="${p.id}" href="#invoice=${invoice.id}&line=${p.id}">${p.name}</a>`:goodsValue(value(p))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;}
+function renderInvoiceItems(){
+  const invoice=invoices.find(p=>p.id===activeInvoice),root=document.getElementById('invoice-items');if(!invoice||!root)return;
+  const rows=sortedInvoiceItems(),state=invoiceItemView(),pages=Math.max(1,Math.ceil(rows.length/10));state.page=Math.max(1,Math.min(state.page,pages));const visible=rows.slice((state.page-1)*10,state.page*10);
+  root.querySelector('#invoice-item-count').textContent=`${rows.length} ta mahsulot`;
+  root.querySelector('#invoice-item-cards').innerHTML=visible.map(p=>`<article class="stock-card invoice-item-card"><div class="card-head"><h2><a class="product-link" data-invoice-line="${p.id}" href="#invoice=${invoice.id}&line=${p.id}">${p.name}</a></h2><span class="currency">${p.currency}</span></div><p class="goods-meta">${p.variant&&p.variant!=='—'?p.variant+' · ':''}${p.barcode}</p><dl class="goods-card-values"><div><dt>Miqdori</dt><dd>${format(p.quantity)} <small>${p.unit}</small></dd></div><div><dt>Kirish narxi</dt><dd>${format(p.cost)} <small>${p.currency}</small></dd></div><div><dt>Yakuniy kirish narxi</dt><dd>${format(p.entryTotal)} <small>${p.currency}</small></dd></div></dl><div class="invoice-card-footer"><span>${p.category}</span><span class="invoice-detail-hint" aria-hidden="true">Tafsilot ${icon('chevronRight')}</span></div></article>`).join('');
+  root.querySelector('#invoice-item-table').innerHTML=invoiceItemTable(visible,invoice);
+  root.querySelector('#invoice-item-empty').hidden=!!rows.length;root.querySelector('#invoice-item-table').hidden=!rows.length;
+  const pager=root.querySelector('#invoice-item-pagination');pager.hidden=pages<=1;pager.innerHTML=`<button class="outline-button" data-invoice-item-page="${state.page-1}" ${state.page===1?'disabled':''} aria-label="Oldingi mahsulotlar sahifasi">${icon('chevronLeft')}</button><span>${state.page} / ${pages}</span><button class="outline-button" data-invoice-item-page="${state.page+1}" ${state.page===pages?'disabled':''} aria-label="Keyingi mahsulotlar sahifasi">${icon('chevronRight')}</button>`;
+  root.querySelector('#invoice-item-totals').innerHTML=invoiceItemTotalsMarkup(invoice);animateResults(root);
+}
+function performInvoiceItemAction(action){
+  const invoice=invoices.find(p=>p.id===activeInvoice);if(!invoice)return;
+  if(action==='columns'){columnContext='invoice-item';document.querySelector('#stock-columns-sheet .choice-note').textContent='Faktura mahsulotlari jadvali va chop etish uchun. Mahsulot nomi doim ko‘rinadi.';stockColumnDraft=[...invoiceItemColumns,...invoiceItemDefs.map(([key])=>key).filter(key=>!invoiceItemColumns.includes(key))].map(key=>({key,visible:invoiceItemColumns.includes(key)}));renderStockColumnChoices();openStockDialog(stockColumnsSheet);return;}
+  if(action==='print'){const rows=sortedInvoiceItems();const html=`<h1>${invoice.id}</h1><p>Sinov fakturasi · ${invoice.currency} · ${rows.length} ta mahsulot</p>${rows.length?invoiceItemTable(rows,invoice,false):'<p>Mahsulot yo‘q.</p>'}<dl class="invoice-item-totals">${invoiceItemTotalsMarkup(invoice)}</dl>`;document.getElementById('stock-print-content').innerHTML=html;document.getElementById('print-area').innerHTML=html;openStockDialog(stockPrintPreview);}
+}
+document.addEventListener('click',event=>{
+  const action=event.target.closest('[data-invoice-item-action]');if(action){performInvoiceItemAction(action.dataset.invoiceItemAction);return;}
+  const page=event.target.closest('[data-invoice-item-page]');if(page){invoiceItemView().page=Number(page.dataset.invoiceItemPage);renderInvoiceItems();document.getElementById('invoice-items-title').scrollIntoView({block:'start'});document.getElementById('invoice-items-title').focus({preventScroll:true});}
+});
+
 let invoicePageNumber=1,invoiceSort={key:'',direction:'desc'};
 const invoicePageSize=10;
 const invoiceColumnDefs=[
@@ -963,7 +1008,7 @@ function invoiceTableMarkup(rows,links=true,offset=0){
   return `<table><thead><tr>${columns.map(([key,label])=>sortHeader(key,label,'invoice',links&&key!=='labels')).join('')}</tr></thead><tbody>${rows.map((item,index)=>`<tr>${columns.map(([key,,value])=>`<td data-column="${key}">${key==='invoiceId'&&links?`<a class="product-link" href="#invoice=${item.id}" data-invoice="${item.id}" aria-label="${item.id} faktura tafsiloti">${item.id}</a>`:key==='labels'?`<button class="invoice-label-button" data-invoice-action="labels" data-invoice-id="${item.id}" aria-label="${item.id} narx yorliqlari">Narx yorliqlari</button>`:value(item,index+offset)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
 }
 function performInvoiceAction(action,id){
-  if(action==='labels'){history.pushState({rizoLabels:true},'',`#invoice=${id}&labels=1`);syncRoute();return;}
+  if(action==='labels'){if(activeInvoice===id&&!activeLabels)Object.assign(invoiceItemView(id),{scroll:window.scrollY,restore:true});history.pushState({rizoLabels:true},'',`#invoice=${id}&labels=1`);syncRoute();return;}
   if(action==='sort'){openSortSheet('invoice');return;}
   if(action==='refresh'){renderInvoices();document.getElementById('report-announcement').textContent='Sinov hisob-fakturalari yangilandi.';return;}
   if(action==='columns'){
@@ -1006,24 +1051,30 @@ function renderInvoices() {
   invoiceFilterTrigger.setAttribute('aria-label', active.length ? `Faktura filtri, ${active.length} ta faol` : 'Faktura filtri');
   animateResults(document.getElementById('invoice-report'));
 }
-function showInvoice(item) {
-  if (activeInvoice === item.id) return;
-  rememberView();
-  activeInvoice = item.id; activeReservation = null; activeProduct = null; activePurchase = null;
-  workspace.hidden = true; invoicePage.hidden = true; productPage.hidden = false;
-  detailBack.setAttribute('aria-label','Hisob-fakturalarga qaytish');
-  document.getElementById('detail-page-label').textContent = 'Hisob-faktura tafsiloti';
-  const summary = document.createElement('section'); summary.className = 'detail-summary';
-  summary.innerHTML = `<div class="detail-kicker"><time datetime="${item.date}T${item.time}">${dateLabel(item.date)} · ${item.time}</time><span class="currency">${item.currency}</span></div><h1 id="product-title" tabindex="-1">${item.id}</h1><p class="invoice-supplier">${item.supplier}</p><div class="invoice-card-meta"><span class="history-type">${item.type}</span><span class="status ${item.payment === 'Qarzga' ? 'low' : 'invoice-payment'}">${item.payment === '—' ? 'To‘lov ko‘rsatilmagan' : item.payment}</span></div>`;
-  const information = document.createElement('section'); information.className = 'detail-information';
-  information.innerHTML = '<h2>Faktura ma’lumotlari</h2><dl class="detail-fields"></dl>';
-  information.querySelector('dl').append(...invoiceFields(item).map(([label,value])=>field(label,value)));
-  const actions = document.createElement('section'); actions.className = 'detail-information invoice-detail-actions';
-  actions.innerHTML = `<h2>Amallar</h2><button class="outline-button" data-invoice-action="export" data-invoice-id="${item.id}">${icon('export')}Ma’lumotlar · CSV</button><button class="outline-button" data-invoice-action="labels" data-invoice-id="${item.id}">${icon('print')}Narx yorliqlari</button><p class="choice-note">CSV faylda ushbu fakturaning tanlangan ma’lumot ustunlari bo‘ladi.</p>`;
-  const note = document.createElement('p'); note.className = 'stage-note'; note.textContent = 'Sinov hisob-fakturasi. Jonli omborga bog‘lanmagan.';
-  detailContent.classList.add('is-purchase-detail'); detailContent.replaceChildren(summary, information, actions, note);
-  document.title = `${item.id} · Hisob-faktura · Rizo Store`;
-  window.scrollTo(0,0); summary.querySelector('h1').focus({preventScroll:true});
+function showInvoice(item,lineId=null) {
+  const line=invoiceItems(item.id).find(p=>p.id===lineId)||null;
+  if(lineId&&!line)history.replaceState(history.state,'',`#invoice=${item.id}`);
+  if(activeInvoice===item.id&&activeInvoiceLine===(line?.id||null))return;
+  const restore=invoiceItemView(item.id).restore||(activeInvoice===item.id&&activeInvoiceLine);
+  const previousLine=activeInvoiceLine;
+  rememberView();activeInvoice=item.id;activeInvoiceLine=line?.id||null;activeReservation=null;activeProduct=null;activePurchase=null;
+  workspace.hidden=true;invoicePage.hidden=true;productPage.hidden=false;
+  detailBack.setAttribute('aria-label',line?'Faktura mahsulotlariga qaytish':'Hisob-fakturalarga qaytish');document.getElementById('detail-page-label').textContent=line?'Faktura mahsuloti':'Hisob-faktura tafsiloti';
+  const summary=document.createElement('section');summary.className='detail-summary';
+  summary.innerHTML=`<div class="detail-kicker"><time>${dateLabel(item.date)} · ${item.time}</time><span class="currency">${item.currency}</span></div><h1 id="product-title" tabindex="-1">${line?line.name:item.id}</h1><p class="invoice-supplier">${line?item.id:item.supplier}</p>`;
+  detailContent.classList.add('is-purchase-detail');detailContent.replaceChildren(summary);
+  if(line){
+    const info=document.createElement('section');info.className='detail-information';info.innerHTML='<h2>Mahsulot ma’lumotlari</h2><dl class="detail-fields"></dl>';
+    info.querySelector('dl').append(...invoiceItemDefs.map(([key,label,value])=>field(label,typeof value(line)==='number'?key==='quantity'?`${format(value(line))} ${line.unit}`:money(value(line),line.currency):value(line))));detailContent.append(info);
+  }else{
+    const meta=document.createElement('details');meta.className='invoice-metadata';meta.innerHTML='<summary>Faktura ma’lumotlari</summary><dl class="detail-fields"></dl>';meta.querySelector('dl').append(...invoiceFields(item).map(([label,value])=>field(label,value)));detailContent.append(meta);
+    const content=document.getElementById('invoice-items-template').content.cloneNode(true);detailContent.append(content);renderInvoiceItems();
+    const actions=document.createElement('section');actions.className='invoice-detail-actions invoice-item-actions';actions.innerHTML=`<button class="outline-button" data-invoice-action="labels" data-invoice-id="${item.id}">${icon('print')}Narx yorliqlari</button><button class="outline-button" data-invoice-action="export" data-invoice-id="${item.id}">${icon('export')}Faktura ma’lumotlari · CSV</button>`;detailContent.append(actions);
+  }
+  const note=document.createElement('p');note.className='stage-note';note.textContent='Sinov fakturasi. Mahsulotlar va yorliqlar shu fakturaga tegishli namuna ma’lumotlaridan olinadi.';detailContent.append(note);
+  document.title=`${line?line.name:item.id} · Hisob-faktura · Rizo Store`;
+  if(!line&&restore){const state=invoiceItemView();state.restore=false;window.scrollTo(0,state.scroll);const target=[...detailContent.querySelectorAll('a[data-invoice-line]')].find(a=>a.dataset.invoiceLine===(previousLine||state.focusLine)&&a.getClientRects().length);(target||summary.querySelector('h1')).focus({preventScroll:true});}
+  else{window.scrollTo(0,0);summary.querySelector('h1').focus({preventScroll:true});}
 }
 function showInvoiceFilterFields(focusKey) {
   invoiceChoosing = null;
@@ -1272,17 +1323,16 @@ const labelRate=12000;
 function sampleEAN(index){const base=`200000000${String(index+1).padStart(3,'0')}`;return base+((10-[...base].reduce((sum,n,i)=>sum+Number(n)*(i%2?3:1),0)%10)%10);}
 function labelDraft(invoice){
   if(!labelDrafts.has(invoice.id)){
-    const indices=invoice.currency==='USD'?[4]:[0,2,5];
-    labelDrafts.set(invoice.id,{template:'ean',currency:'native',query:'',selected:0,rows:indices.map((index,i)=>({...products[index],ean:sampleEAN(index),sale:products[index].price*1.2,quantity:i===0?2:1}))});
+    labelDrafts.set(invoice.id,{template:'ean',currency:'native',query:'',selected:0,rows:invoiceItems(invoice.id).map(row=>({...row}))});
   }
   return labelDrafts.get(invoice.id);
 }
 function currentLabelDraft(){return labelDrafts.get(activeLabels);}
 function labelMatches(row,query){return `${row.name} ${row.ean} ${row.barcode}`.toLocaleLowerCase('uz').includes(query.trim().toLocaleLowerCase('uz'));}
 function labelPrice(row,draft,multiplier=1){const currency=draft.currency==='native'?row.currency:draft.currency;const value=row.sale*multiplier*(currency===row.currency?1:currency==='UZS'?labelRate:1/labelRate);return {currency,value:Math.round(value*100)/100};}
-function labelValidation(draft){if(draft.rows.some(r=>!Number.isInteger(r.quantity)||r.quantity<0||r.quantity>999))return 'Miqdor 0 dan 999 gacha butun son bo‘lsin.';if(draft.rows.reduce((s,r)=>s+r.quantity,0)>1000)return 'Bir martada 1 000 tagacha sinov yorlig‘i tayyorlash mumkin.';return '';}
+function labelValidation(draft){if(draft.rows.some(r=>!Number.isSafeInteger(r.quantity)||r.quantity<0))return 'Miqdor 0 yoki undan katta butun son bo‘lsin.';if(draft.rows.reduce((s,r)=>s+r.quantity,0)>1000)return 'Bir martada 1 000 tagacha sinov yorlig‘i tayyorlash mumkin.';return '';}
 function labelMarkup(row,draft){
-  const template=labelTemplates.find(t=>t.id===draft.template),price=labelPrice(row,draft),promo=labelPrice(row,draft,.9),wholesale=labelPrice(row,draft,.95),transfer=labelPrice(row,draft,1.02);
+  const template=labelTemplates.find(t=>t.id===draft.template),price=labelPrice(row,draft),promo=labelPrice(row,draft,.9),wholesale=labelPrice(row,draft,row.sale?row.wholesale/row.sale:0),transfer=labelPrice(row,draft,1.02);
   const amount=p=>`<b>${format(p.value)}</b><small>${p.currency}</small>`;
   const special=template.kind==='promo'?`<span class="label-promo">AKSIYA</span><s>${format(price.value)} ${price.currency}</s><div class="label-price">${amount(promo)}</div>`:template.kind==='wholesale'||template.kind==='payment'?`<div class="label-dual"><div><small>${template.kind==='wholesale'?'Chakana':'Naqd'}</small>${amount(price)}</div><div><small>${template.kind==='wholesale'?'Ulgurji':'O‘tkazma'}</small>${amount(template.kind==='wholesale'?wholesale:transfer)}</div></div>`:`<div class="label-price">${amount(price)}</div>`;
   return `<article class="price-label ${template.alternate?'label-alternate':''} ${template.id.startsWith('a4')?'label-a4':''}" style="--label-width:${template.width}mm;--label-height:${template.height}mm;--label-ratio:${template.width}/${template.height}"><small class="label-shop">${template.kind==='logo'?'<strong class="label-logo">RiZO STORE</strong>':'NAMUNA FILIAL'}</small><strong class="label-product-name ${row.name.length>70?'label-long-name':''}">${row.name}</strong>${special}<small class="label-unit">1 ${row.unit}</small><svg class="label-barcode" data-code="${row.ean}" data-format="${template.kind==='code128'?'CODE128':template.kind==='code39'?'CODE39':'EAN13'}" role="img" aria-label="${row.ean} shtrix-kodi"></svg></article>`;
@@ -1290,27 +1340,27 @@ function labelMarkup(row,draft){
 function drawLabelBarcodes(root){root.querySelectorAll('.label-barcode').forEach(svg=>JsBarcode(svg,svg.dataset.code,{format:svg.dataset.format,width:2,height:32,fontSize:14,margin:8,background:'#ffffff',lineColor:'#000000'}));}
 function showLabels(invoice){
   if(activeLabels===invoice.id)return;
-  rememberView();activeLabels=invoice.id;activeInvoice=invoice.id;activeProduct=null;activePurchase=null;activeReservation=null;
+  rememberView();activeInvoiceLine=null;activeLabels=invoice.id;activeInvoice=invoice.id;activeProduct=null;activePurchase=null;activeReservation=null;
   const draft=labelDraft(invoice);
   workspace.hidden=true;invoicePage.hidden=true;productPage.hidden=false;
   detailBack.setAttribute('aria-label','Yorliqlardan qaytish');document.getElementById('detail-page-label').textContent='Narx yorliqlari';
   detailContent.classList.add('is-purchase-detail');
-  detailContent.innerHTML=`<section class="detail-summary"><h1 id="product-title" tabindex="-1">Narx yorliqlari</h1><p class="invoice-supplier">${invoice.id}</p></section><div class="label-layout"><section class="detail-information label-settings"><h2>Yorliq sozlamalari</h2><button class="filter-field" data-label-choice="template"><span class="filter-label">Shablon</span><strong id="label-template-name"></strong><span class="field-arrow">${icon('chevronRight')}</span></button><button class="filter-field" data-label-choice="currency"><span class="filter-label">Valyuta</span><strong id="label-currency-name"></strong><span class="field-arrow">${icon('chevronRight')}</span></button><p id="label-rate-note" class="choice-note"></p><h2>Oldindan ko‘rish</h2><div id="label-preview" class="label-preview" aria-live="polite"></div><p class="choice-note">Sinov yorlig‘i. Shablon maketi prototip uchun qayta yaratilgan.</p></section><section class="detail-information label-products"><h2>Mahsulotlar</h2><label class="search"><span>${icon('search')}</span><input id="label-search" type="search" placeholder="Qidirish" aria-label="Yorliq mahsulotlarini qidirish" autocomplete="off"></label><form id="label-bulk-form" class="label-bulk"><label>Miqdori<input id="label-bulk-quantity" type="number" inputmode="numeric" min="0" max="999" step="1" value="1" required></label><button class="outline-button" type="submit">Barchasiga qo‘llash</button></form><p class="choice-note">Qidiruv faqat ro‘yxatni toraytiradi. Miqdor va chop etish barcha mahsulotlarga tegishli; 0 — chiqarilmaydi.</p><div id="label-product-list"></div><p id="label-empty" class="empty" hidden>Mahsulot topilmadi. <button class="text-button" data-label-clear>Tozalash</button></p></section></div><footer class="label-footer"><div><strong id="label-total" role="status"></strong><p class="choice-note">Chop etishda 100% yoki Haqiqiy o‘lchamni tanlang.</p></div><button class="primary-button" id="label-print">${icon('print')}Chop etish</button><p id="label-error" class="history-filter-error" role="alert"></p></footer>`;
+  detailContent.innerHTML=`<section class="detail-summary"><h1 id="product-title" tabindex="-1">Narx yorliqlari</h1><p class="invoice-supplier">${invoice.id}</p></section><div class="label-layout"><section class="detail-information label-settings"><h2>Yorliq sozlamalari</h2><button class="filter-field" data-label-choice="template"><span class="filter-label">Shablon</span><strong id="label-template-name"></strong><span class="field-arrow">${icon('chevronRight')}</span></button><button class="filter-field" data-label-choice="currency"><span class="filter-label">Valyuta</span><strong id="label-currency-name"></strong><span class="field-arrow">${icon('chevronRight')}</span></button><p id="label-rate-note" class="choice-note"></p><h2>Oldindan ko‘rish</h2><div id="label-preview" class="label-preview" aria-live="polite"></div><p class="choice-note">Sinov yorlig‘i. Shablon maketi prototip uchun qayta yaratilgan.</p></section><section class="detail-information label-products"><h2>Mahsulotlar</h2><label class="search"><span>${icon('search')}</span><input id="label-search" type="search" placeholder="Qidirish" aria-label="Yorliq mahsulotlarini qidirish" autocomplete="off"></label><form id="label-bulk-form" class="label-bulk"><label>Miqdori<input id="label-bulk-quantity" type="number" inputmode="numeric" min="0" step="1" value="1" required></label><button class="outline-button" type="submit">Barchasiga qo‘llash</button></form><p class="choice-note">Qidiruv faqat ro‘yxatni toraytiradi. Miqdor va chop etish barcha mahsulotlarga tegishli; 0 — chiqarilmaydi.</p><div id="label-product-list"></div><p id="label-empty" class="empty" hidden>Mahsulot topilmadi. <button class="text-button" data-label-clear>Tozalash</button></p></section></div><footer class="label-footer"><div><strong id="label-total" role="status"></strong><p class="choice-note">Chop etishda 100% yoki Haqiqiy o‘lchamni tanlang.</p></div><button class="primary-button" id="label-print">${icon('print')}Chop etish</button><p id="label-error" class="history-filter-error" role="alert"></p></footer>`;
   const searchInput=document.getElementById('label-search');searchInput.value=draft.query;searchInput.addEventListener('input',()=>{draft.query=searchInput.value;renderLabelProducts();});
-  document.getElementById('label-bulk-form').addEventListener('submit',event=>{event.preventDefault();const value=document.getElementById('label-bulk-quantity').valueAsNumber;if(!Number.isInteger(value)||value<0||value>999)return;draft.rows.forEach(row=>row.quantity=value);renderLabelProducts();updateLabelPreview();});
+  document.getElementById('label-bulk-form').addEventListener('submit',event=>{event.preventDefault();const value=document.getElementById('label-bulk-quantity').valueAsNumber;if(!Number.isSafeInteger(value)||value<0)return;draft.rows.forEach(row=>row.quantity=value);renderLabelProducts();updateLabelPreview();});
   document.getElementById('label-print').addEventListener('click',printLabels);
   renderLabelProducts();updateLabelPreview();window.scrollTo(0,0);document.getElementById('product-title').focus({preventScroll:true});document.title=`Narx yorliqlari · ${invoice.id} · Rizo Store`;
 }
 function renderLabelProducts(){
   const draft=currentLabelDraft(),list=document.getElementById('label-product-list');
-  list.innerHTML=`<div class="label-row label-table-head" aria-hidden="true"><span>Mahsulot / shtrix-kod</span><span>Valyuta / birlik</span><span>Sotish narxi</span><span>Miqdori</span></div>`+draft.rows.map((row,index)=>({row,index})).filter(({row})=>labelMatches(row,draft.query)).map(({row,index})=>`<article class="label-row"><div><button class="text-button label-product-select" data-label-preview="${index}" aria-pressed="${draft.selected===index}">${row.name}</button><small>${row.ean}</small></div><span class="label-row-meta">${row.currency} · ${row.unit}</span><strong class="label-row-price">${format(row.sale)} <small>${row.currency}</small></strong><label class="label-quantity"><span>Miqdori</span><input type="number" inputmode="numeric" min="0" max="999" step="1" value="${Number.isFinite(row.quantity)?row.quantity:''}" data-label-quantity="${index}" aria-label="${row.name}: yorliq soni"></label></article>`).join('');
+  list.innerHTML=`<div class="label-row label-table-head" aria-hidden="true"><span>Mahsulot / shtrix-kod</span><span>Valyuta / birlik</span><span>Sotish narxi</span><span>Miqdori</span></div>`+draft.rows.map((row,index)=>({row,index})).filter(({row})=>labelMatches(row,draft.query)).map(({row,index})=>`<article class="label-row"><div><button class="text-button label-product-select" data-label-preview="${index}" aria-pressed="${draft.selected===index}">${row.name}</button><small>${row.ean}</small></div><span class="label-row-meta">${row.currency} · ${row.unit}</span><strong class="label-row-price">${format(row.sale)} <small>${row.currency}</small></strong><label class="label-quantity"><span>Miqdori</span><input type="number" inputmode="numeric" min="0" step="1" value="${Number.isFinite(row.quantity)?row.quantity:''}" data-label-quantity="${index}" aria-label="${row.name}: yorliq soni"></label></article>`).join('');
   document.getElementById('label-empty').hidden=draft.rows.some(row=>labelMatches(row,draft.query));
 }
 function updateLabelPreview(){
   const draft=currentLabelDraft(),template=labelTemplates.find(t=>t.id===draft.template),error=labelValidation(draft),total=draft.rows.reduce((sum,row)=>sum+(Number.isInteger(row.quantity)&&row.quantity>=0?row.quantity:0),0);
   document.getElementById('label-template-name').textContent=template.name;document.getElementById('label-currency-name').textContent=draft.currency==='native'?'Tovar valyutasi':draft.currency;
   document.getElementById('label-rate-note').textContent=draft.currency!=='native'&&draft.rows.some(r=>r.currency!==draft.currency)?'Sinov kursi: 1 USD = 12 000 UZS.':'Narxlar sinov ma’lumotlaridan olingan.';
-  document.getElementById('label-preview').innerHTML=labelMarkup(draft.rows[draft.selected],draft);drawLabelBarcodes(document.getElementById('label-preview'));
+  document.getElementById('label-preview').innerHTML=draft.rows.length?labelMarkup(draft.rows[draft.selected],draft):'<p class="choice-note">Fakturada mahsulot yo‘q.</p>';drawLabelBarcodes(document.getElementById('label-preview'));
   document.getElementById('label-total').textContent=`Jami: ${format(total)} ta yorliq`;
   document.getElementById('label-error').textContent=error;document.getElementById('label-print').disabled=!!error||total===0;
   document.querySelectorAll('[data-label-preview]').forEach(button=>button.setAttribute('aria-pressed',String(Number(button.dataset.labelPreview)===draft.selected)));

@@ -114,6 +114,16 @@
     <div id="goods-totals" class="purchase-totals"></div>
     <p class="stage-note">Sinov xarid yozuvlari. Summalar valyuta bo‘yicha alohida hisoblanadi. Eksport va chop etishda filtrga mos barcha sahifalar olinadi.</p>
   </main>
+  <template id="invoice-items-template">
+    <section id="invoice-items" class="invoice-items" aria-labelledby="invoice-items-title">
+      <div class="invoice-items-heading"><div><h2 id="invoice-items-title" tabindex="-1">Mahsulotlar</h2><p id="invoice-item-count" class="choice-note" role="status"></p></div><div class="invoice-items-controls"><button class="icon-button" data-invoice-item-action="columns" aria-label="Faktura mahsulotlari ustunlari" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM4 10h16M10 4v16"/></svg></button><button class="icon-button" data-sort-open="invoice-item" aria-label="Faktura mahsulotlarini saralash" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4v16m-4-4 4 4 4-4M16 20V4m-4 4 4-4 4 4"/></svg></button><button class="icon-button" data-invoice-item-action="print" aria-label="Faktura mahsulotlarini chop etish" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V3h12v6M6 17H3V9h18v8h-3M6 14h12v7H6zM17 11h1"/></svg></button></div></div>
+      <div id="invoice-item-cards" class="cards invoice-item-cards"></div>
+      <div id="invoice-item-table" class="table-wrap" tabindex="0" role="region" aria-label="Faktura mahsulotlari jadvali"></div>
+      <div id="invoice-item-empty" class="empty" hidden><h3>Fakturada mahsulot yo‘q</h3><p>Mahsulotlar qo‘shilganda shu yerda ko‘rinadi.</p></div>
+      <nav id="invoice-item-pagination" class="report-pagination" aria-label="Faktura mahsulotlari sahifalari"></nav>
+      <dl id="invoice-item-totals" class="invoice-item-totals" aria-label="Faktura bo‘yicha jamilar"></dl>
+    </section>
+  </template>
   <main id="product-page" class="product-page" aria-labelledby="product-title" hidden>
     <header class="detail-header">
       <button id="detail-back" class="icon-button" aria-label="Qoldiqlarga qaytish"><span data-icon="back"></span></button>
