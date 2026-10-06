@@ -12,7 +12,8 @@
 .table-wrap .product-link{display:inline-block;padding:6px 0;font-weight:700}
 .product-link:hover{color:var(--primary)}
 .stock-card{position:relative}
-.stock-card .product-link::after{content:"";position:absolute;inset:0;border-radius:var(--radius-card)}
+/* Card taps use the existing detail link without covering nested controls. */
+@media(max-width:760px){.stock-card:has(a.product-link),.purchase-card:has(a[data-entry],a[data-purchase]){cursor:pointer}}
 
 .product-page{margin:0;padding:0;min-height:100dvh;background:var(--bg);touch-action:pan-y;transition:transform .18s ease-out;overflow-x:clip}
 .product-page.swiping{transition:none}

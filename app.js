@@ -34,8 +34,8 @@ document.addEventListener('click', event => {
   const control = event.target.closest('button, a[href], summary, input, select, textarea, [role="button"], .filter-option');
   if (!control || control.matches(':disabled, [aria-disabled="true"]')) return;
   if (control.matches('input:not([type=checkbox]):not([type=radio]),select,textarea')) return;
-  const surface = control.closest('.filter-option, .stock-card, .attention-card, .home-action') || control;
-  animateUI(surface, [{scale: surface.matches('.stock-card,.attention-card,.home-action') ? '.99' : '.97', filter: 'brightness(.94)'}, {scale: '1', filter: 'brightness(1)'}], 160);
+  const surface = control.closest('.filter-option, .stock-card, .purchase-card, .attention-card, .home-action') || control;
+  animateUI(surface, [{scale: surface.matches('.stock-card,.purchase-card,.attention-card,.home-action') ? '.99' : '.97', filter: 'brightness(.94)'}, {scale: '1', filter: 'brightness(1)'}], 160);
 }, {capture:true});
 // A small entrance for deliberate result changes; typing stays visually stable.
 function animateResults(root) {
@@ -740,6 +740,14 @@ function goBack() {
 }
 document.addEventListener('click', event => {
   if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  // Mobile card content forwards to its existing detail link; controls keep their own action.
+  const card = event.target.closest('.stock-card, .purchase-card');
+  if (innerWidth <= 760 && card && !event.defaultPrevented &&
+      !event.target.closest('a,button,input,select,textarea,label,summary,[role="button"],[contenteditable]') &&
+      !window.getSelection()?.toString()) {
+    const link = card.querySelector('a.product-link, a[data-entry], a[data-purchase]');
+    if (link) { event.preventDefault(); link.click(); return; }
+  }
   const route = event.target.closest('[data-route]');
   if (route) {
     event.preventDefault();
