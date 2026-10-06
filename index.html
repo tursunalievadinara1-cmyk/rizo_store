@@ -6,6 +6,7 @@
   <title>Bosh sahifa · Rizo Store</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800;900&display=swap">
   <link rel="stylesheet" href="styles.css">
+  <script src="barcode.min.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -85,7 +86,7 @@
     <div id="invoice-table" class="table-wrap" tabindex="0" role="region" aria-label="Hisob-fakturalar jadvali, gorizontal aylantirish mumkin"><table><thead><tr><th>№</th><th>Faktura raqami</th><th>Turi</th><th>Ta’minotchi</th><th>Filial</th><th>Ombor</th><th>Valyuta</th><th>To‘lov tartibi</th><th>To‘lov sanasi</th><th>Xaridni ochgan xodim</th><th>Xaridni yopgan xodim</th><th>Yaratilgan sana</th><th>Narxlar ro‘yxati</th></tr></thead><tbody id="invoice-table-body"></tbody></table></div>
     <div id="invoice-empty" class="empty" hidden><span data-icon="search"></span><h2>Hisob-faktura topilmadi</h2><p>Qidiruv yoki filtrlarni o‘zgartiring.</p><button id="invoice-clear" class="outline-button">Tozalash</button></div>
     <nav id="invoice-pagination" class="report-pagination" aria-label="Hisob-faktura sahifalari"></nav>
-    <p class="stage-note">Hisob-fakturalar — sinov ma’lumotlari. Eksport va chop etishda filtrga mos barcha sahifalar olinadi. Narx yorliqlari va mahsulotlar bo‘yicha hisobot keyingi bosqichda ulanadi.</p>
+    <p class="stage-note">Hisob-fakturalar — sinov ma’lumotlari. Eksport va chop etishda filtrga mos barcha sahifalar olinadi. Mahsulotlar bo‘yicha hisobot keyingi bosqichda ulanadi.</p>
   </main>
   <main id="product-page" class="product-page" aria-labelledby="product-title" hidden>
     <header class="detail-header">
@@ -150,5 +151,7 @@
   <dialog id="stock-sub-sheet" class="filter-sheet" aria-labelledby="stock-sub-title"><div class="sheet-handle" aria-hidden="true"></div><header class="sheet-header"><h2 id="stock-sub-title">Qoldiqlar</h2><button class="icon-button" aria-label="Qoldiqlar tanlovini yopish" data-stock-sub-close><span data-icon="close"></span></button></header><div class="report-choices"><button class="report-choice" data-route="reports"><span>Qoldiq</span></button><button class="report-choice" data-route="reserved"><span>Zaxiralangan mahsulotlar</span></button></div></dialog>
   <dialog id="reserved-filter-sheet" class="filter-sheet history-filter-sheet" aria-labelledby="reserved-filter-title"><div class="sheet-handle" aria-hidden="true"></div><header class="sheet-header"><button id="reserved-filter-back" class="icon-button" aria-label="Zaxira filtriga qaytish" hidden><span data-icon="back"></span></button><h2 id="reserved-filter-title">Zaxira filtri</h2><button id="reserved-filter-close" class="icon-button" aria-label="Zaxira filtrini yopish"><span data-icon="close"></span></button></header><form id="reserved-filter-form" class="invoice-filter-form"><div id="reserved-filter-body" class="history-filter-body"></div><div id="reserved-filter-choices" class="history-filter-body" hidden><label class="search stock-choice-search"><span data-icon="search"></span><input id="reserved-option-search" type="search" placeholder="Qidirish" aria-label="Zaxira filtri tanlovlarini qidirish"></label><fieldset class="filter-options"><legend class="sr-only">Qiymatni tanlang</legend><div id="reserved-option-list"></div></fieldset><p id="reserved-no-options" role="status" class="choice-note" hidden>Mos tanlov topilmadi.</p></div><p id="reserved-filter-error" class="history-filter-error" role="alert"></p><footer id="reserved-filter-footer" class="sheet-footer"><button type="button" id="reserved-filter-reset" class="outline-button">Tozalash</button><button type="submit" class="primary-button">Qo‘llash</button></footer></form></dialog>
 <dialog id="sort-sheet" class="filter-sheet" aria-labelledby="sort-title"><div class="sheet-handle" aria-hidden="true"></div><header class="sheet-header"><h2 id="sort-title">Saralash</h2><button id="sort-close" class="icon-button" aria-label="Saralashni yopish"><span data-icon="close"></span></button></header><div class="sort-directions"><button data-sort-direction="desc">Kamayish <span data-icon="arrowDown"></span></button><button data-sort-direction="asc">O‘sish <span data-icon="arrowUp"></span></button></div><div id="sort-options" class="report-choices"></div></dialog>
+<dialog id="label-choice-sheet" class="filter-sheet" aria-labelledby="label-choice-title"><div class="sheet-handle" aria-hidden="true"></div><header class="sheet-header"><h2 id="label-choice-title">Shablon</h2><button id="label-choice-close" class="icon-button" aria-label="Yorliq tanlovini yopish"><span data-icon="close"></span></button></header><div id="label-choice-options" class="report-choices"></div></dialog>
+<style id="label-print-page"></style>
 </body>
 </html>

@@ -245,7 +245,7 @@ let stockDialogOverflow='',columnContext='report';
 const historyColumnProfiles={};
 try{Object.assign(historyColumnProfiles,JSON.parse(localStorage.getItem('rizo-history-columns'))||{});}catch{}
 function reportActionData(){if(stockTab==='reserved')return {title:'Zaxiralangan mahsulotlar',rows:filteredReservedRows(),columns:reservedColumns.map(key=>reservedColumnDefs.find(([id])=>id===key)),table:reservedTableMarkup,totals:reservedTotalsMarkup};return {title:'Qoldiq',rows:filteredStockRows(),columns:selectedStockColumns(),table:stockTableMarkup,totals:stockTotalsMarkup};}
-function openStockDialog(dialog){stockDialogOverflow=document.body.style.overflow;document.body.style.overflow='hidden';dialog.showModal();}
+function openStockDialog(dialog){if(dialog===stockPrintPreview){document.querySelector('#stock-print-preview>.choice-note').textContent='Tanlangan ustunlar va filtrga mos barcha qatorlar. Qog‘oz yo‘nalishi: albom.';document.getElementById('label-print-page').textContent='';}stockDialogOverflow=document.body.style.overflow;document.body.style.overflow='hidden';dialog.showModal();}
 [stockColumnsSheet,stockPrintPreview].forEach(dialog=>{dialog.querySelector('[data-close-stock-dialog]').addEventListener('click',()=>dialog.close());dialog.addEventListener('close',()=>{document.body.style.overflow=stockDialogOverflow;});dialog.addEventListener('click',event=>{if(event.target!==dialog)return;const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close();});});
 function currentColumnDefs(){if(columnContext==='invoice')return invoiceColumnDefs;if(columnContext==='history')return historyColumnDefinitions(activeHistoryMode);return stockTab==='reserved'?reservedColumnDefs:stockColumnDefs;}
 function currentColumns(){if(columnContext==='invoice')return invoiceColumns;if(columnContext==='history')return selectedHistoryColumns(activeHistoryMode);return stockTab==='reserved'?reservedColumns:stockColumns;}
@@ -626,19 +626,25 @@ function navigate(view, stockStatus) {
   syncRoute();
 }
 function syncRoute() {
+  const wasLabels = Boolean(activeLabels);
   const before = {view: activeView, product: activeProduct, entry: activePurchase, mode: activeHistoryMode, invoice: activeInvoice, reservation: activeReservation};
   applyRoute();
-  const changed = before.reservation !== activeReservation || before.invoice !== activeInvoice || before.view !== activeView || before.product !== activeProduct || before.entry !== activePurchase || before.mode !== activeHistoryMode;
+  const changed = wasLabels !== Boolean(activeLabels) || before.reservation !== activeReservation || before.invoice !== activeInvoice || before.view !== activeView || before.product !== activeProduct || before.entry !== activePurchase || before.mode !== activeHistoryMode;
   if (!changed) return;
   // Cancel outgoing motion so fast navigation never leaves a stale effect.
   motionAnimations.forEach(animation => animation.cancel());
   const historyOnly = activeProduct && before.product === activeProduct && !before.entry && !activePurchase && before.mode !== activeHistoryMode;
-  const backwards = (before.reservation && !activeReservation) || (before.invoice && !activeInvoice) || (before.entry && !activePurchase) || (before.product && !activeProduct) || (!before.product && before.view === 'reports' && activeView === 'home');
+  const backwards = (wasLabels && !activeLabels) || (before.reservation && !activeReservation) || (before.invoice && !activeInvoice) || (before.entry && !activePurchase) || (before.product && !activeProduct) || (!before.product && before.view === 'reports' && activeView === 'home');
   const target = activeReservation ? detailContent : activeInvoice ? detailContent : activeProduct ? (historyOnly ? detailContent.querySelector('.purchase-history') : detailContent) : activeView === 'home' ? dashboard : activeView === 'invoices' ? invoicePage : reportsPage;
   enterContent(target, backwards ? -1 : 1, historyOnly ? 12 : 24);
 }
 function applyRoute() {
   returning = false;
+  const labelParams=new URLSearchParams(location.hash.slice(1));
+  const leavingLabels=activeLabels && !(labelParams.get('invoice')===activeLabels && labelParams.get('labels')==='1');
+  if(leavingLabels)activeLabels=null;
+  if(labelChoiceSheet.open)labelChoiceSheet.close();
+  document.getElementById('label-print-page').textContent='';
   if(stockSubSheet.open)stockSubSheet.close();
   if(reservedFilterSheet.open)reservedFilterSheet.close();
   if(filterSheet.open)filterSheet.close();
@@ -652,7 +658,8 @@ function applyRoute() {
   if (reportChoiceSheet.open) reportChoiceSheet.close();
   const invoiceId = new URLSearchParams(location.hash.slice(1)).get('invoice');
   const invoice = invoices.find(item => item.id === invoiceId);
-  if (invoice) { showInvoice(invoice); return; }
+  if (invoice && new URLSearchParams(location.hash.slice(1)).get('labels')==='1') { showLabels(invoice); return; }
+  if (invoice) { if(leavingLabels)activeInvoice=null;showInvoice(invoice); return; }
   if (invoiceId) history.replaceState(null, '', '#invoices');
   const code = new URLSearchParams(location.hash.slice(1)).get('product');
   const originalProduct = products.find(item => item.barcode === code);
@@ -698,6 +705,7 @@ function applyRoute() {
   }
 }
 function goBack() {
+  if(activeLabels){if(returning)return;returning=true;if(history.state?.rizoLabels)history.back();else{history.replaceState(null,'',`#invoice=${activeLabels}`);syncRoute();}return;}
   if(activeReservation){if(returning)return;returning=true;if(history.state?.rizoReservation)history.back();else{history.replaceState(null,'','#reserved');syncRoute();}return;}
   if (activeInvoice) {
     if (returning) return;
@@ -929,9 +937,10 @@ function filteredInvoices() {
 function resetInvoicePage(){invoicePageNumber=1;renderInvoices();}
 function invoiceTableMarkup(rows,links=true,offset=0){
   const columns=invoiceColumns.map(key=>invoiceColumnDefs.find(([id])=>id===key)).filter(([key])=>links||key!=='labels');
-  return `<table><thead><tr>${columns.map(([key,label])=>sortHeader(key,label,'invoice',links&&key!=='labels')).join('')}</tr></thead><tbody>${rows.map((item,index)=>`<tr>${columns.map(([key,,value])=>`<td data-column="${key}">${key==='invoiceId'&&links?`<a class="product-link" href="#invoice=${item.id}" data-invoice="${item.id}" aria-label="${item.id} faktura tafsiloti">${item.id}</a>`:key==='labels'?'<button class="invoice-label-button" disabled title="Narx yorliqlari keyingi bosqichda ulanadi">Narx yorliqlari</button>':value(item,index+offset)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  return `<table><thead><tr>${columns.map(([key,label])=>sortHeader(key,label,'invoice',links&&key!=='labels')).join('')}</tr></thead><tbody>${rows.map((item,index)=>`<tr>${columns.map(([key,,value])=>`<td data-column="${key}">${key==='invoiceId'&&links?`<a class="product-link" href="#invoice=${item.id}" data-invoice="${item.id}" aria-label="${item.id} faktura tafsiloti">${item.id}</a>`:key==='labels'?`<button class="invoice-label-button" data-invoice-action="labels" data-invoice-id="${item.id}" aria-label="${item.id} narx yorliqlari">Narx yorliqlari</button>`:value(item,index+offset)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
 }
 function performInvoiceAction(action,id){
+  if(action==='labels'){history.pushState({rizoLabels:true},'',`#invoice=${id}&labels=1`);syncRoute();return;}
   if(action==='sort'){openSortSheet('invoice');return;}
   if(action==='refresh'){renderInvoices();document.getElementById('report-announcement').textContent='Sinov hisob-fakturalari yangilandi.';return;}
   if(action==='columns'){
@@ -987,7 +996,7 @@ function showInvoice(item) {
   information.innerHTML = '<h2>Faktura ma’lumotlari</h2><dl class="detail-fields"></dl>';
   information.querySelector('dl').append(...invoiceFields(item).map(([label,value])=>field(label,value)));
   const actions = document.createElement('section'); actions.className = 'detail-information invoice-detail-actions';
-  actions.innerHTML = `<h2>Amallar</h2><button class="outline-button" data-invoice-action="export" data-invoice-id="${item.id}">${icon('export')}Ma’lumotlar · CSV</button><button class="outline-button" disabled>Narx yorliqlari</button><p class="choice-note">CSV faylda ushbu fakturaning tanlangan ma’lumot ustunlari bo‘ladi. Narx yorliqlari keyingi bosqichda ulanadi.</p>`;
+  actions.innerHTML = `<h2>Amallar</h2><button class="outline-button" data-invoice-action="export" data-invoice-id="${item.id}">${icon('export')}Ma’lumotlar · CSV</button><button class="outline-button" data-invoice-action="labels" data-invoice-id="${item.id}">${icon('print')}Narx yorliqlari</button><p class="choice-note">CSV faylda ushbu fakturaning tanlangan ma’lumot ustunlari bo‘ladi.</p>`;
   const note = document.createElement('p'); note.className = 'stage-note'; note.textContent = 'Sinov hisob-fakturasi. Jonli omborga bog‘lanmagan.';
   detailContent.classList.add('is-purchase-detail'); detailContent.replaceChildren(summary, information, actions, note);
   document.title = `${item.id} · Hisob-faktura · Rizo Store`;
@@ -1096,6 +1105,89 @@ function showReservedFilterFields(focusKey){reservedChoosing=null;document.getEl
 function renderReservedChoices(){const key=reservedChoosing,query=reservedOptionSearch.value.trim().toLocaleLowerCase('uz');const values=['',...new Set(reservations.map(p=>p[key]))].filter(value=>(value||'Barchasi').toLocaleLowerCase('uz').includes(query));const list=document.getElementById('reserved-option-list');list.replaceChildren();values.forEach(value=>{const label=document.createElement('label');label.className='filter-option';const input=document.createElement('input');input.type='radio';input.name='reserved-choice';input.value=value;input.checked=reservedDraft[key]===value;input.addEventListener('click',()=>{reservedDraft[key]=value;showReservedFilterFields(key);});const text=document.createElement('span');text.textContent=value||'Barchasi';label.append(input,text);list.append(label);});document.getElementById('reserved-no-options').hidden=!!values.length;}
 function showReservedChoices(key){reservedChoosing=key;document.getElementById('reserved-filter-title').textContent=reservedFilterLabels[key];document.getElementById('reserved-filter-back').hidden=false;reservedFilterBody.hidden=true;reservedFilterChoices.hidden=false;document.getElementById('reserved-filter-footer').hidden=true;reservedOptionSearch.value='';reservedOptionSearch.closest('label').hidden=!['supplier','warehouse','branch','cashier','unit'].includes(key);renderReservedChoices();document.querySelector('#reserved-option-list input:checked')?.focus({preventScroll:true});enterContent(reservedFilterChoices,1,12);}
 reservedOptionSearch.addEventListener('input',renderReservedChoices);document.getElementById('reserved-filter-back').addEventListener('click',()=>showReservedFilterFields(reservedChoosing));document.getElementById('reserved-filter-close').addEventListener('click',()=>reservedFilterSheet.close());document.getElementById('reserved-filter-reset').addEventListener('click',()=>{reservedDraft=emptyReservedFilters();showReservedFilterFields();});document.getElementById('reserved-filter-form').addEventListener('submit',event=>{event.preventDefault();if(reservedChoosing)return;if(reservedDraft.from&&reservedDraft.to&&reservedDraft.from>reservedDraft.to){document.getElementById('reserved-filter-error').textContent='Boshlanish sanasi tugash sanasidan keyin bo‘lmasin.';document.getElementById('reserved-date-to').focus();return;}reservedFilters={...reservedDraft};resetStockPage();reservedFilterSheet.close();});reservedFilterSheet.addEventListener('close',()=>{document.body.style.overflow=reservedFilterOverflow;filterTrigger.setAttribute('aria-expanded','false');if(filterTrigger.getClientRects().length)filterTrigger.focus({preventScroll:true});});reservedFilterSheet.addEventListener('cancel',event=>{if(reservedChoosing){event.preventDefault();showReservedFilterFields(reservedChoosing);}});reservedFilterSheet.addEventListener('click',event=>{if(event.target!==reservedFilterSheet)return;const r=reservedFilterSheet.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)reservedFilterSheet.close();});
+
+// Label quantities and prices are isolated fixtures; no inventory records are changed.
+let activeLabels=null;
+const labelDrafts=new Map();
+const labelChoiceSheet=document.getElementById('label-choice-sheet');
+let labelChoiceOverflow='';
+const labelKinds=[['ean','EAN-13'],['code128','CODE128'],['code39','CODE39'],['logo','Logotipli'],['promo','Aksiyali'],['wholesale','Ulgurji'],['payment','Naqd va o‘tkazma']];
+const labelTemplates=[...labelKinds.map(([kind,name])=>({id:kind,kind,name,width:58,height:40})),...labelKinds.map(([kind,name])=>({id:kind+'-2',kind,name:name+' · 2-variant',width:58,height:40,alternate:true})),{id:'basic',kind:'basic',name:'Asosiy',width:58,height:40},{id:'promo-3',kind:'promo',name:'Aksiyali · 3-variant',width:58,height:40,alternate:true},{id:'a4',kind:'basic',name:'A4',width:190,height:277},{id:'a4-landscape',kind:'basic',name:'A4 · albom',width:277,height:190}];
+const labelRate=12000;
+function sampleEAN(index){const base=`200000000${String(index+1).padStart(3,'0')}`;return base+((10-[...base].reduce((sum,n,i)=>sum+Number(n)*(i%2?3:1),0)%10)%10);}
+function labelDraft(invoice){
+  if(!labelDrafts.has(invoice.id)){
+    const indices=invoice.currency==='USD'?[4]:[0,2,5];
+    labelDrafts.set(invoice.id,{template:'ean',currency:'native',query:'',selected:0,rows:indices.map((index,i)=>({...products[index],ean:sampleEAN(index),sale:products[index].price*1.2,quantity:i===0?2:1}))});
+  }
+  return labelDrafts.get(invoice.id);
+}
+function currentLabelDraft(){return labelDrafts.get(activeLabels);}
+function labelMatches(row,query){return `${row.name} ${row.ean} ${row.barcode}`.toLocaleLowerCase('uz').includes(query.trim().toLocaleLowerCase('uz'));}
+function labelPrice(row,draft,multiplier=1){const currency=draft.currency==='native'?row.currency:draft.currency;const value=row.sale*multiplier*(currency===row.currency?1:currency==='UZS'?labelRate:1/labelRate);return {currency,value:Math.round(value*100)/100};}
+function labelValidation(draft){if(draft.rows.some(r=>!Number.isInteger(r.quantity)||r.quantity<0||r.quantity>999))return 'Miqdor 0 dan 999 gacha butun son bo‘lsin.';if(draft.rows.reduce((s,r)=>s+r.quantity,0)>1000)return 'Bir martada 1 000 tagacha sinov yorlig‘i tayyorlash mumkin.';return '';}
+function labelMarkup(row,draft){
+  const template=labelTemplates.find(t=>t.id===draft.template),price=labelPrice(row,draft),promo=labelPrice(row,draft,.9),wholesale=labelPrice(row,draft,.95),transfer=labelPrice(row,draft,1.02);
+  const amount=p=>`<b>${format(p.value)}</b><small>${p.currency}</small>`;
+  const special=template.kind==='promo'?`<span class="label-promo">AKSIYA</span><s>${format(price.value)} ${price.currency}</s><div class="label-price">${amount(promo)}</div>`:template.kind==='wholesale'||template.kind==='payment'?`<div class="label-dual"><div><small>${template.kind==='wholesale'?'Chakana':'Naqd'}</small>${amount(price)}</div><div><small>${template.kind==='wholesale'?'Ulgurji':'O‘tkazma'}</small>${amount(template.kind==='wholesale'?wholesale:transfer)}</div></div>`:`<div class="label-price">${amount(price)}</div>`;
+  return `<article class="price-label ${template.alternate?'label-alternate':''} ${template.id.startsWith('a4')?'label-a4':''}" style="--label-width:${template.width}mm;--label-height:${template.height}mm"><small class="label-shop">${template.kind==='logo'?'<strong class="label-logo">RiZO STORE</strong>':'NAMUNA FILIAL'}</small><strong class="label-product-name ${row.name.length>70?'label-long-name':''}">${row.name}</strong>${special}<small class="label-unit">1 ${row.unit}</small><svg class="label-barcode" data-code="${row.ean}" data-format="${template.kind==='code128'?'CODE128':template.kind==='code39'?'CODE39':'EAN13'}" role="img" aria-label="${row.ean} shtrix-kodi"></svg></article>`;
+}
+function drawLabelBarcodes(root){root.querySelectorAll('.label-barcode').forEach(svg=>JsBarcode(svg,svg.dataset.code,{format:svg.dataset.format,width:2,height:32,fontSize:14,margin:8,background:'#ffffff',lineColor:'#000000'}));}
+function showLabels(invoice){
+  if(activeLabels===invoice.id)return;
+  rememberView();activeLabels=invoice.id;activeInvoice=invoice.id;activeProduct=null;activePurchase=null;activeReservation=null;
+  const draft=labelDraft(invoice);
+  workspace.hidden=true;invoicePage.hidden=true;productPage.hidden=false;
+  detailBack.setAttribute('aria-label','Yorliqlardan qaytish');document.getElementById('detail-page-label').textContent='Narx yorliqlari';
+  detailContent.classList.add('is-purchase-detail');
+  detailContent.innerHTML=`<section class="detail-summary"><h1 id="product-title" tabindex="-1">Narx yorliqlari</h1><p class="invoice-supplier">${invoice.id}</p></section><div class="label-layout"><section class="detail-information label-settings"><h2>Yorliq sozlamalari</h2><button class="filter-field" data-label-choice="template"><span class="filter-label">Shablon</span><strong id="label-template-name"></strong><span class="field-arrow">${icon('chevronRight')}</span></button><button class="filter-field" data-label-choice="currency"><span class="filter-label">Valyuta</span><strong id="label-currency-name"></strong><span class="field-arrow">${icon('chevronRight')}</span></button><p id="label-rate-note" class="choice-note"></p><h2>Oldindan ko‘rish</h2><div id="label-preview" class="label-preview" aria-live="polite"></div><p class="choice-note">Sinov yorlig‘i. Shablon maketi prototip uchun qayta yaratilgan.</p></section><section class="detail-information label-products"><h2>Mahsulotlar</h2><label class="search"><span>${icon('search')}</span><input id="label-search" type="search" placeholder="Qidirish" aria-label="Yorliq mahsulotlarini qidirish" autocomplete="off"></label><form id="label-bulk-form" class="label-bulk"><label>Miqdori<input id="label-bulk-quantity" type="number" inputmode="numeric" min="0" max="999" step="1" value="1" required></label><button class="outline-button" type="submit">Barchasiga qo‘llash</button></form><p class="choice-note">Qidiruv faqat ro‘yxatni toraytiradi. Miqdor va chop etish barcha mahsulotlarga tegishli; 0 — chiqarilmaydi.</p><div id="label-product-list"></div><p id="label-empty" class="empty" hidden>Mahsulot topilmadi. <button class="text-button" data-label-clear>Tozalash</button></p></section></div><footer class="label-footer"><div><strong id="label-total" role="status"></strong><p class="choice-note">Chop etishda 100% yoki Haqiqiy o‘lchamni tanlang.</p></div><button class="primary-button" id="label-print">${icon('print')}Chop etish</button><p id="label-error" class="history-filter-error" role="alert"></p></footer>`;
+  const searchInput=document.getElementById('label-search');searchInput.value=draft.query;searchInput.addEventListener('input',()=>{draft.query=searchInput.value;renderLabelProducts();});
+  document.getElementById('label-bulk-form').addEventListener('submit',event=>{event.preventDefault();const value=document.getElementById('label-bulk-quantity').valueAsNumber;if(!Number.isInteger(value)||value<0||value>999)return;draft.rows.forEach(row=>row.quantity=value);renderLabelProducts();updateLabelPreview();});
+  document.getElementById('label-print').addEventListener('click',printLabels);
+  renderLabelProducts();updateLabelPreview();window.scrollTo(0,0);document.getElementById('product-title').focus({preventScroll:true});document.title=`Narx yorliqlari · ${invoice.id} · Rizo Store`;
+}
+function renderLabelProducts(){
+  const draft=currentLabelDraft(),list=document.getElementById('label-product-list');
+  list.innerHTML=`<div class="label-row label-table-head" aria-hidden="true"><span>Mahsulot / shtrix-kod</span><span>Valyuta / birlik</span><span>Sotish narxi</span><span>Miqdori</span></div>`+draft.rows.map((row,index)=>({row,index})).filter(({row})=>labelMatches(row,draft.query)).map(({row,index})=>`<article class="label-row"><div><button class="text-button label-product-select" data-label-preview="${index}" aria-pressed="${draft.selected===index}">${row.name}</button><small>${row.ean}</small></div><span class="label-row-meta">${row.currency} · ${row.unit}</span><strong class="label-row-price">${format(row.sale)} <small>${row.currency}</small></strong><label class="label-quantity"><span>Miqdori</span><input type="number" inputmode="numeric" min="0" max="999" step="1" value="${Number.isFinite(row.quantity)?row.quantity:''}" data-label-quantity="${index}" aria-label="${row.name}: yorliq soni"></label></article>`).join('');
+  document.getElementById('label-empty').hidden=draft.rows.some(row=>labelMatches(row,draft.query));
+}
+function updateLabelPreview(){
+  const draft=currentLabelDraft(),template=labelTemplates.find(t=>t.id===draft.template),error=labelValidation(draft),total=draft.rows.reduce((sum,row)=>sum+(Number.isInteger(row.quantity)&&row.quantity>=0?row.quantity:0),0);
+  document.getElementById('label-template-name').textContent=template.name;document.getElementById('label-currency-name').textContent=draft.currency==='native'?'Tovar valyutasi':draft.currency;
+  document.getElementById('label-rate-note').textContent=draft.currency!=='native'&&draft.rows.some(r=>r.currency!==draft.currency)?'Sinov kursi: 1 USD = 12 000 UZS.':'Narxlar sinov ma’lumotlaridan olingan.';
+  document.getElementById('label-preview').innerHTML=labelMarkup(draft.rows[draft.selected],draft);drawLabelBarcodes(document.getElementById('label-preview'));
+  document.getElementById('label-total').textContent=`Jami: ${format(total)} ta yorliq`;
+  document.getElementById('label-error').textContent=error;document.getElementById('label-print').disabled=!!error||total===0;
+  document.querySelectorAll('[data-label-preview]').forEach(button=>button.setAttribute('aria-pressed',String(Number(button.dataset.labelPreview)===draft.selected)));
+}
+function printLabels(){
+  const draft=currentLabelDraft();if(labelValidation(draft)||!draft.rows.some(row=>row.quantity>0))return;
+  const template=labelTemplates.find(t=>t.id===draft.template),a4=template.id.startsWith('a4');
+  document.getElementById('print-area').innerHTML=`<div class="label-print-output">${draft.rows.flatMap(row=>Array.from({length:row.quantity},()=>labelMarkup(row,draft))).join('')}</div>`;
+  drawLabelBarcodes(document.getElementById('print-area'));
+  document.getElementById('label-print-page').textContent=`@media print{@page{size:${a4?(template.id==='a4'?'A4 portrait':'A4 landscape'):`${template.width}mm ${template.height}mm`};margin:${a4?'10mm':'0'}}}`;
+  const pageStyle=document.getElementById('label-print-page').textContent;
+  document.getElementById('stock-print-content').innerHTML=`<div class="label-preview-grid">${document.getElementById('print-area').innerHTML}</div>`;
+  openStockDialog(stockPrintPreview);document.getElementById('label-print-page').textContent=pageStyle;
+  document.querySelector('#stock-print-preview>.choice-note').textContent=`${draft.rows.reduce((sum,row)=>sum+row.quantity,0)} ta sinov yorlig‘i · ${template.name} · ${a4?'A4':template.width+' × '+template.height+' mm'}. 100% yoki Haqiqiy o‘lchamni tanlang.`;
+}
+stockPrintPreview.addEventListener('close',()=>document.getElementById('label-print-page').textContent='');
+
+document.addEventListener('input',event=>{if(event.target.matches('[data-label-quantity]')){currentLabelDraft().rows[Number(event.target.dataset.labelQuantity)].quantity=event.target.valueAsNumber;event.target.setAttribute('aria-invalid',String(!event.target.validity.valid));updateLabelPreview();}});
+document.addEventListener('click',event=>{
+  const choice=event.target.closest('[data-label-choice]');if(choice){openLabelChoice(choice.dataset.labelChoice);return;}
+  const preview=event.target.closest('[data-label-preview]');if(preview){currentLabelDraft().selected=Number(preview.dataset.labelPreview);updateLabelPreview();document.getElementById('label-preview').scrollIntoView({behavior:reducedMotion.matches?'instant':'smooth',block:'center'});return;}
+  if(event.target.closest('[data-label-clear]')){currentLabelDraft().query='';document.getElementById('label-search').value='';renderLabelProducts();document.getElementById('label-search').focus();}
+});
+function openLabelChoice(key){
+  const draft=currentLabelDraft();document.getElementById('label-choice-title').textContent=key==='template'?'Yorliq shabloni':'Yorliq valyutasi';
+  const options=key==='template'?labelTemplates.map(t=>[t.id,t.name]):[['native','Tovar valyutasi'],['UZS','UZS'],['USD','USD']];
+  const list=document.getElementById('label-choice-options');list.replaceChildren();options.forEach(([value,name])=>{const button=document.createElement('button');button.className='report-choice';button.textContent=name;button.setAttribute('aria-pressed',String(draft[key]===value));if(draft[key]===value)button.insertAdjacentHTML('beforeend','<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>');button.addEventListener('click',()=>{draft[key]=value;updateLabelPreview();labelChoiceSheet.close();});list.append(button);});
+  labelChoiceOverflow=document.body.style.overflow;document.body.style.overflow='hidden';labelChoiceSheet.showModal();
+}
+document.getElementById('label-choice-close').addEventListener('click',()=>labelChoiceSheet.close());
+labelChoiceSheet.addEventListener('close',()=>document.body.style.overflow=labelChoiceOverflow);
+labelChoiceSheet.addEventListener('click',event=>{if(event.target!==labelChoiceSheet)return;const r=labelChoiceSheet.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)labelChoiceSheet.close();});
 
 detailBack.addEventListener('click', goBack);
 window.addEventListener('popstate', syncRoute);
