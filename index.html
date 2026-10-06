@@ -114,6 +114,30 @@
     <div id="goods-totals" class="purchase-totals"></div>
     <p class="stage-note">Sinov xarid yozuvlari. Summalar valyuta bo‘yicha alohida hisoblanadi. Eksport va chop etishda filtrga mos barcha sahifalar olinadi.</p>
   </main>
+  <main id="sales-report" aria-labelledby="sales-report-title" hidden>
+    <div class="title-row"><h1 id="sales-report-title" tabindex="-1">Mahsulot bo‘yicha sotish</h1><span class="sample-badge">Namuna</span></div>
+    <nav class="report-tabs" aria-label="Hisobotlar"></nav>
+    <button class="mobile-report-picker" data-choice-sheet="reports" aria-haspopup="dialog" aria-controls="report-choice-sheet" aria-expanded="false"><span data-icon="chart"></span><span>Hisobotlar <strong>Mahsulot bo‘yicha sotish</strong></span><span data-icon="chevronDown" aria-hidden="true"></span></button>
+    <div class="toolbar">
+      <label class="search"><span data-icon="search"></span><input id="sales-search" type="search" placeholder="Qidirish" aria-label="Mahsulot nomini qidirish" autocomplete="off"></label>
+      <div class="pending-actions">
+        <button id="sales-filter-trigger" class="outline-button" aria-label="Sotuv filtri" aria-haspopup="dialog" aria-controls="sales-filter-sheet" aria-expanded="false"><span data-icon="filter"></span>Filtr<span id="sales-filter-count" class="history-filter-count" hidden></span></button>
+        <button class="outline-button" data-sales-action="export"><span data-icon="export"></span>Eksport</button>
+        <button class="outline-button" data-sales-action="print"><span data-icon="print"></span>Chop etish</button>
+        <button class="icon-button stock-columns-trigger" data-sales-action="columns" aria-label="Sotuv jadvali ustunlari"><span data-icon="grid"></span></button>
+        <button class="icon-button mobile-more" data-choice-sheet="actions" aria-label="Qo‘shimcha amallar" aria-haspopup="dialog" aria-controls="report-choice-sheet"><span data-icon="more" aria-hidden="true"></span></button>
+      </div>
+    </div>
+    <details class="barcode-search sales-barcode"><summary><span data-icon="search"></span>Shtrix-kod</summary><label class="search"><input id="sales-barcode" type="search" placeholder="Shtrix-kod" aria-label="Sotuv shtrix-kodini qidirish" autocomplete="off"></label></details>
+    <div id="sales-filter-chips" class="filter-chips" aria-label="Faol sotuv filtrlari"></div>
+    <div class="list-meta"><span id="sales-count" role="status" aria-live="polite"></span><button class="text-button" data-sales-action="refresh">Yangilash</button></div>
+    <div id="sales-cards" class="cards invoice-cards"></div>
+    <div id="sales-table" class="table-wrap" tabindex="0" role="region" aria-label="Sotuv mahsulotlari jadvali, gorizontal aylantirish mumkin"></div>
+    <div id="sales-empty" class="empty" hidden><span data-icon="search"></span><h2>Mahsulot topilmadi</h2><p>Qidiruv yoki filtrlarni o‘zgartiring.</p><button id="sales-clear" class="outline-button">Tozalash</button></div>
+    <nav id="sales-pagination" class="report-pagination" aria-label="Sotuv mahsulotlari sahifalari"></nav>
+    <div id="sales-totals" class="purchase-totals"></div>
+    <p class="stage-note">Sinov sotuv yozuvlari. Summalar valyuta bo‘yicha alohida hisoblanadi. Eksport va chop etishda filtrga mos barcha sahifalar olinadi.</p>
+  </main>
   <template id="invoice-items-template">
     <section id="invoice-items" class="invoice-items" aria-labelledby="invoice-items-title">
       <div class="invoice-items-heading"><div><h2 id="invoice-items-title" tabindex="-1">Mahsulotlar</h2><p id="invoice-item-count" class="choice-note" role="status"></p></div><div class="invoice-items-controls"><button class="icon-button" data-invoice-item-action="columns" aria-label="Faktura mahsulotlari ustunlari" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM4 10h16M10 4v16"/></svg></button><button class="icon-button" data-sort-open="invoice-item" aria-label="Faktura mahsulotlarini saralash" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4v16m-4-4 4 4 4-4M16 20V4m-4 4 4-4 4 4"/></svg></button><button class="icon-button" data-invoice-item-action="print" aria-label="Faktura mahsulotlarini chop etish" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V3h12v6M6 17H3V9h18v8h-3M6 14h12v7H6zM17 11h1"/></svg></button></div></div>
@@ -189,6 +213,16 @@
       <div id="goods-filter-choices" class="history-filter-body" hidden><label class="search goods-choice-search"><span data-icon="search"></span><input id="goods-option-search" type="search" placeholder="Qidirish" aria-label="Xarid filtri tanlovlarini qidirish" autocomplete="off"></label><fieldset class="filter-options"><legend class="sr-only">Qiymatni tanlang</legend><div id="goods-option-list"></div></fieldset><p id="goods-no-options" class="choice-note" role="status" hidden>Mos tanlov topilmadi.</p></div>
       <p id="goods-filter-error" class="history-filter-error" role="alert"></p>
       <footer id="goods-filter-footer" class="sheet-footer"><button type="button" id="goods-filter-reset" class="outline-button">Tozalash</button><button type="submit" class="primary-button">Qo‘llash</button></footer>
+    </form>
+  </dialog>
+  <dialog id="sales-filter-sheet" class="filter-sheet history-filter-sheet" aria-labelledby="sales-filter-title">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <header class="sheet-header"><button id="sales-filter-back" class="icon-button" aria-label="Sotuv filtriga qaytish" hidden><span data-icon="back"></span></button><h2 id="sales-filter-title">Sotuv filtri</h2><button id="sales-filter-close" class="icon-button" aria-label="Sotuv filtrini yopish"><span data-icon="close"></span></button></header>
+    <form id="sales-filter-form" class="invoice-filter-form">
+      <div id="sales-filter-body" class="history-filter-body"></div>
+      <div id="sales-filter-choices" class="history-filter-body" hidden><label class="search sales-choice-search"><span data-icon="search"></span><input id="sales-option-search" type="search" placeholder="Qidirish" aria-label="Sotuv filtri tanlovlarini qidirish" autocomplete="off"></label><fieldset class="filter-options"><legend class="sr-only">Qiymatni tanlang</legend><div id="sales-option-list"></div></fieldset><p id="sales-no-options" class="choice-note" role="status" hidden>Mos tanlov topilmadi.</p></div>
+      <p id="sales-filter-error" class="history-filter-error" role="alert"></p>
+      <footer id="sales-filter-footer" class="sheet-footer"><button type="button" id="sales-filter-reset" class="outline-button">Tozalash</button><button type="submit" class="primary-button">Qo‘llash</button></footer>
     </form>
   </dialog>
   <dialog id="stock-columns-sheet" class="filter-sheet" aria-labelledby="stock-columns-title"><div class="sheet-handle" aria-hidden="true"></div><header class="sheet-header"><h2 id="stock-columns-title">Jadval ustunlari</h2><button class="icon-button" data-close-stock-dialog aria-label="Ustunlar oynasini yopish"><span data-icon="close"></span></button></header><p class="choice-note">Desktop jadvali, eksport va chop etish uchun. Mahsulot nomi doim ko‘rinadi.</p><button class="text-button" id="columns-select-all">Hammasini tanlash</button><div id="stock-columns-list" class="filter-fields"></div><footer class="sheet-footer"><button id="stock-columns-reset" class="outline-button">Tiklash</button><button id="stock-columns-apply" class="primary-button">Saqlash</button></footer></dialog>

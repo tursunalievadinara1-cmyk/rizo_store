@@ -394,3 +394,10 @@ summary{user-select:none;-webkit-user-select:none}
 @media(min-width:761px){.detail-content:has(#invoice-items){max-width:1440px}.detail-content:has(#invoice-items)>.detail-summary,.invoice-metadata{max-width:840px}}
 @media(max-width:760px){.invoice-item-totals dt{max-width:48%}.invoice-item-totals dd{max-width:52%;font-size:15px}.invoice-item-actions{display:grid;grid-template-columns:1fr}.invoice-items-controls .icon-button{width:44px;height:44px}.invoice-items-heading{gap:6px}}
 @media print{.invoice-item-totals>div{break-inside:avoid;padding:5px}.invoice-item-totals{font-size:10px}}
+
+/* Sales reports share the existing controls and card rhythm. */
+#sales-filter-form{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+#sales-report .invoice-card-footer>span:first-child{min-width:0;overflow-wrap:anywhere}
+#sales-totals .purchase-total dl{grid-template-columns:1fr}#sales-totals dd{overflow-wrap:anywhere}
+@media screen{#sales-table td[data-column="name"]{min-width:240px;max-width:320px;white-space:normal;overflow-wrap:anywhere}#sales-table td[data-column="supplier"],#sales-table td[data-column="branch"]{max-width:240px;white-space:normal;overflow-wrap:anywhere}}
+@media(max-width:760px){#sales-report .title-row{align-items:flex-start}#sales-report .title-row h1{font-size:23px}#sales-report .pending-actions>[data-sales-action="export"],#sales-report .pending-actions>[data-sales-action="print"]{display:none}#sales-totals .purchase-total dl>div{display:flex;justify-content:space-between;gap:16px}#sales-totals dd{text-align:right;font-size:15px}#sales-filter-body .history-date-fields{grid-template-columns:1fr}}

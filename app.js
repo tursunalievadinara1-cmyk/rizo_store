@@ -191,7 +191,7 @@ function sortReportRows(rows,definitions,selection,history=false){
 }
 function sortHeader(key,label,context,interactive=true){
   if(!interactive||['rowNumber','№'].includes(key))return `<th scope="col">${label}</th>`;
-  const selected=context==='invoice-item'?invoiceItemView().sort:context==='goods'?goodsSort:context==='invoice'?invoiceSort:context==='report'?reportSorts[stockTab]:historySorts[activeHistoryMode];const current=selected?.key===key;
+  const selected=context==='invoice-item'?invoiceItemView().sort:context==='sales'?salesSort:context==='goods'?goodsSort:context==='invoice'?invoiceSort:context==='report'?reportSorts[stockTab]:historySorts[activeHistoryMode];const current=selected?.key===key;
   return `<th scope="col" aria-sort="${current?(selected.direction==='asc'?'ascending':'descending'):'none'}"><button class="table-sort" data-sort-key="${key}" data-sort-context="${context}" aria-label="${label} bo‘yicha saralash">${label}<span aria-hidden="true">${icon(current?(selected.direction==='asc'?'arrowUp':'arrowDown'):'sort')}</span></button></th>`;
 }
 function activeStockFilters(){const defaults=emptyFilters();return Object.entries(filters).filter(([key,value])=>!['target','rate'].includes(key)&&value!==defaults[key]);}
@@ -247,11 +247,11 @@ try{Object.assign(historyColumnProfiles,JSON.parse(localStorage.getItem('rizo-hi
 function reportActionData(){if(stockTab==='reserved')return {title:'Zaxiralangan mahsulotlar',rows:filteredReservedRows(),columns:reservedColumns.map(key=>reservedColumnDefs.find(([id])=>id===key)),table:reservedTableMarkup,totals:reservedTotalsMarkup};return {title:'Qoldiq',rows:filteredStockRows(),columns:selectedStockColumns(),table:stockTableMarkup,totals:stockTotalsMarkup};}
 function openStockDialog(dialog){if(dialog===stockPrintPreview){document.querySelector('#stock-print-preview>.choice-note').textContent='Tanlangan ustunlar va filtrga mos barcha qatorlar. Qog‘oz yo‘nalishi: albom.';document.getElementById('label-print-page').textContent='';}stockDialogOverflow=document.body.style.overflow;document.body.style.overflow='hidden';dialog.showModal();}
 [stockColumnsSheet,stockPrintPreview].forEach(dialog=>{dialog.querySelector('[data-close-stock-dialog]').addEventListener('click',()=>dialog.close());dialog.addEventListener('close',()=>{document.body.style.overflow=stockDialogOverflow;});dialog.addEventListener('click',event=>{if(event.target!==dialog)return;const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close();});});
-function currentColumnDefs(){if(columnContext==='invoice-item')return invoiceItemDefs;if(columnContext==='goods')return goodsColumnDefs;if(columnContext==='invoice')return invoiceColumnDefs;if(columnContext==='history')return historyColumnDefinitions(activeHistoryMode);return stockTab==='reserved'?reservedColumnDefs:stockColumnDefs;}
-function currentColumns(){if(columnContext==='invoice-item')return invoiceItemColumns;if(columnContext==='goods')return goodsColumns;if(columnContext==='invoice')return invoiceColumns;if(columnContext==='history')return selectedHistoryColumns(activeHistoryMode);return stockTab==='reserved'?reservedColumns:stockColumns;}
+function currentColumnDefs(){if(columnContext==='sales')return salesColumnDefs;if(columnContext==='invoice-item')return invoiceItemDefs;if(columnContext==='goods')return goodsColumnDefs;if(columnContext==='invoice')return invoiceColumnDefs;if(columnContext==='history')return historyColumnDefinitions(activeHistoryMode);return stockTab==='reserved'?reservedColumnDefs:stockColumnDefs;}
+function currentColumns(){if(columnContext==='sales')return salesColumns;if(columnContext==='invoice-item')return invoiceItemColumns;if(columnContext==='goods')return goodsColumns;if(columnContext==='invoice')return invoiceColumns;if(columnContext==='history')return selectedHistoryColumns(activeHistoryMode);return stockTab==='reserved'?reservedColumns:stockColumns;}
 function renderStockColumnChoices(){const list=document.getElementById('stock-columns-list');list.replaceChildren();stockColumnDraft.forEach((item,index)=>{const line=document.createElement('div');line.className='column-choice';const label=document.createElement('label');const input=document.createElement('input');input.type='checkbox';input.checked=item.visible;input.disabled=item.key==='invoiceId'||item.key==='name'||item.key==='Mahsulot nomi';input.addEventListener('change',()=>item.visible=input.checked);const name=document.createElement('span');name.textContent=currentColumnDefs().find(([key])=>key===item.key)[1];label.append(input,name);line.append(label);[['arrowUp',-1,'Yuqoriga'],['arrowDown',1,'Pastga']].forEach(([symbol,offset,title])=>{const button=document.createElement('button');button.className='icon-button';button.innerHTML=icon(symbol);button.setAttribute('aria-label',`${name.textContent}: ${title}`);button.disabled=index+offset<0||index+offset>=stockColumnDraft.length;button.addEventListener('click',()=>{[stockColumnDraft[index],stockColumnDraft[index+offset]]=[stockColumnDraft[index+offset],stockColumnDraft[index]];renderStockColumnChoices();const moved=list.children[index+offset];moved?.querySelector('input')?.focus({preventScroll:true});animateUI(moved,[{translate:`0 ${-offset*12}px`,opacity:.6},{translate:'0 0',opacity:1}],180);});line.append(button);});list.append(line);});}
 document.getElementById('stock-columns-reset').addEventListener('click',()=>{stockColumnDraft=currentColumnDefs().map(([key])=>({key,visible:true}));renderStockColumnChoices();});
-document.getElementById('stock-columns-apply').addEventListener('click',()=>{const selected=stockColumnDraft.filter(c=>c.visible).map(c=>c.key);if(columnContext==='invoice-item'){invoiceItemColumns=selected;try{localStorage.setItem('rizo-invoice-item-columns-v1',JSON.stringify(selected));}catch{}renderInvoiceItems();stockColumnsSheet.close();return;}if(columnContext==='goods'){goodsColumns=selected;try{localStorage.setItem('rizo-goods-columns-v1',JSON.stringify(selected));}catch{}renderGoods();stockColumnsSheet.close();return;}if(columnContext==='invoice'){invoiceColumns=selected;try{localStorage.setItem('rizo-invoice-columns-v1',JSON.stringify(selected));}catch{}renderInvoices();stockColumnsSheet.close();return;}if(columnContext==='history'){historyColumnProfiles[activeHistoryMode]=selected;try{localStorage.setItem('rizo-history-columns',JSON.stringify(historyColumnProfiles));}catch{}refreshHistory();stockColumnsSheet.close();return;}if(stockTab==='reserved')reservedColumns=selected;else stockColumns=selected;try{localStorage.setItem(stockTab==='reserved'?'rizo-reserved-columns-v2':'rizo-stock-columns-v2',JSON.stringify(selected));}catch{}render();stockColumnsSheet.close();});
+document.getElementById('stock-columns-apply').addEventListener('click',()=>{const selected=stockColumnDraft.filter(c=>c.visible).map(c=>c.key);if(columnContext==='sales'){salesColumns=selected;try{localStorage.setItem('rizo-sales-columns-v1',JSON.stringify(selected));}catch{}renderSales();stockColumnsSheet.close();return;}if(columnContext==='invoice-item'){invoiceItemColumns=selected;try{localStorage.setItem('rizo-invoice-item-columns-v1',JSON.stringify(selected));}catch{}renderInvoiceItems();stockColumnsSheet.close();return;}if(columnContext==='goods'){goodsColumns=selected;try{localStorage.setItem('rizo-goods-columns-v1',JSON.stringify(selected));}catch{}renderGoods();stockColumnsSheet.close();return;}if(columnContext==='invoice'){invoiceColumns=selected;try{localStorage.setItem('rizo-invoice-columns-v1',JSON.stringify(selected));}catch{}renderInvoices();stockColumnsSheet.close();return;}if(columnContext==='history'){historyColumnProfiles[activeHistoryMode]=selected;try{localStorage.setItem('rizo-history-columns',JSON.stringify(historyColumnProfiles));}catch{}refreshHistory();stockColumnsSheet.close();return;}if(stockTab==='reserved')reservedColumns=selected;else stockColumns=selected;try{localStorage.setItem(stockTab==='reserved'?'rizo-reserved-columns-v2':'rizo-stock-columns-v2',JSON.stringify(selected));}catch{}render();stockColumnsSheet.close();});
 function csvCell(value){if(typeof value==='number')return String(value);let text=String(value??'');if(/^[\s]*[=+@-]/.test(text))text=`'${text}`;return `"${text.replaceAll('"','""')}"`;}
 function reportCSV(data){return '\uFEFF'+[data.columns.map(([,label])=>csvCell(label)).join(','),...data.rows.map((row,index)=>data.columns.map(([, ,value])=>csvCell(value(row,index))).join(','))].join('\r\n');}
 function performStockAction(action){
@@ -266,15 +266,15 @@ document.getElementById('stock-print-confirm').addEventListener('click',()=>wind
 document.addEventListener('click',event=>{const action=event.target.closest('[data-stock-action]');if(action){performStockAction(action.dataset.stockAction);return;}const page=event.target.closest('[data-stock-page]');if(page){stockPageNumber=Number(page.dataset.stockPage);render();document.getElementById('reports-title').focus({preventScroll:true});window.scrollTo(0,0);}});
 
 const sortSheet=document.getElementById('sort-sheet');let sortOverflow='';
-function currentSort(){if(sortContext==='invoice-item')return invoiceItemView().sort;if(sortContext==='goods')return goodsSort;if(sortContext==='invoice')return invoiceSort;return sortContext==='history'?(historySorts[activeHistoryMode]||{key:'',direction:'desc'}):reportSorts[stockTab];}
-function setSort(key,direction){const selected={key,direction};if(sortContext==='invoice-item'){invoiceItemView().sort=selected;invoiceItemView().page=1;renderInvoiceItems();return;}if(sortContext==='goods'){goodsSort=selected;resetGoodsPage();return;}if(sortContext==='invoice'){invoiceSort=selected;resetInvoicePage();}else if(sortContext==='history'){historySorts[activeHistoryMode]=selected;refreshHistory();}else{reportSorts[stockTab]=selected;resetStockPage();}}
-function renderSortOptions(){const selected=currentSort(),defs=sortContext==='invoice-item'?invoiceItemDefs:sortContext==='goods'?goodsColumnDefs:sortContext==='invoice'?invoiceColumnDefs:sortContext==='history'?historyColumnDefinitions(activeHistoryMode):(stockTab==='reserved'?reservedColumnDefs:stockColumnDefs);const list=document.getElementById('sort-options');list.replaceChildren();[['','Asl tartib'],...defs.filter(([key])=>!['rowNumber','№','labels'].includes(key))].forEach(([key,label])=>{const button=document.createElement('button');button.className='report-choice';button.textContent=label;button.setAttribute('aria-pressed',String(selected.key===key));if(selected.key===key)button.insertAdjacentHTML('beforeend','<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>');button.addEventListener('click',()=>{setSort(key,currentSort().direction);sortSheet.close();});list.append(button);});document.querySelectorAll('[data-sort-direction]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.sortDirection===selected.direction)));}
+function currentSort(){if(sortContext==='sales')return salesSort;if(sortContext==='invoice-item')return invoiceItemView().sort;if(sortContext==='goods')return goodsSort;if(sortContext==='invoice')return invoiceSort;return sortContext==='history'?(historySorts[activeHistoryMode]||{key:'',direction:'desc'}):reportSorts[stockTab];}
+function setSort(key,direction){const selected={key,direction};if(sortContext==='sales'){salesSort=selected;resetSalesPage();return;}if(sortContext==='invoice-item'){invoiceItemView().sort=selected;invoiceItemView().page=1;renderInvoiceItems();return;}if(sortContext==='goods'){goodsSort=selected;resetGoodsPage();return;}if(sortContext==='invoice'){invoiceSort=selected;resetInvoicePage();}else if(sortContext==='history'){historySorts[activeHistoryMode]=selected;refreshHistory();}else{reportSorts[stockTab]=selected;resetStockPage();}}
+function renderSortOptions(){const selected=currentSort(),defs=sortContext==='sales'?salesColumnDefs:sortContext==='invoice-item'?invoiceItemDefs:sortContext==='goods'?goodsColumnDefs:sortContext==='invoice'?invoiceColumnDefs:sortContext==='history'?historyColumnDefinitions(activeHistoryMode):(stockTab==='reserved'?reservedColumnDefs:stockColumnDefs);const list=document.getElementById('sort-options');list.replaceChildren();[['','Asl tartib'],...defs.filter(([key])=>!['rowNumber','№','labels'].includes(key))].forEach(([key,label])=>{const button=document.createElement('button');button.className='report-choice';button.textContent=label;button.setAttribute('aria-pressed',String(selected.key===key));if(selected.key===key)button.insertAdjacentHTML('beforeend','<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>');button.addEventListener('click',()=>{setSort(key,currentSort().direction);sortSheet.close();});list.append(button);});document.querySelectorAll('[data-sort-direction]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.sortDirection===selected.direction)));}
 function openSortSheet(context){sortContext=context;renderSortOptions();sortOverflow=document.body.style.overflow;document.body.style.overflow='hidden';sortSheet.showModal();}
 document.getElementById('sort-close').addEventListener('click',()=>sortSheet.close());sortSheet.addEventListener('close',()=>{document.body.style.overflow=sortOverflow;});sortSheet.addEventListener('click',event=>{if(event.target!==sortSheet)return;const r=sortSheet.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)sortSheet.close();});
 document.addEventListener('click',event=>{const open=event.target.closest('[data-sort-open]');if(open){openSortSheet(open.dataset.sortOpen);return;}const direction=event.target.closest('[data-sort-direction]');if(direction){setSort(currentSort().key,direction.dataset.sortDirection);renderSortOptions();return;}const header=event.target.closest('[data-sort-key]');if(header){sortContext=header.dataset.sortContext;const selected=currentSort();setSort(header.dataset.sortKey,selected.key===header.dataset.sortKey&&selected.direction==='desc'?'asc':'desc');}});
 
 // Desktop and mobile share the same report destinations.
-const reportSections = [['Qoldiqlar', 'reports'], ['Sotib olish', 'invoices'], ['Mahsulot bo‘yicha sotish'], ['Qaytish'], ['Yalpi daromad'], ['Keshbek'], ['Kassa']];
+const reportSections = [['Qoldiqlar', 'reports'], ['Sotib olish', 'invoices'], ['Mahsulot bo‘yicha sotish', 'sales'], ['Qaytish'], ['Yalpi daromad'], ['Keshbek'], ['Kassa']];
 function updateReportNavigation(view) {
   document.querySelectorAll('.report-tabs').forEach(nav => {
     nav.innerHTML = reportSections.map(([title, route]) => route
@@ -291,7 +291,7 @@ document.querySelectorAll('[data-choice-sheet]').forEach(trigger => {
     const isReports = trigger.dataset.choiceSheet === 'reports',isPurchase=trigger.dataset.choiceSheet==='purchase';
     document.getElementById('report-choice-title').textContent = isPurchase?'Sotib olish':isReports ? 'Hisobotlar' : 'Qo‘shimcha amallar';
     document.getElementById('report-choice-note').textContent = isPurchase?'Ko‘rinishni tanlang.':isReports
-      ? 'Qoldiqlar va sotib olish hisobotlari faol.' : 'Filtrga mos barcha qatorlar uchun.';
+      ? 'Qoldiqlar, sotib olish va sotuv hisobotlari faol.' : 'Filtrga mos barcha qatorlar uchun.';
     const list = document.getElementById('report-choices');
     list.replaceChildren();
     (isPurchase?[['Hisob-fakturalar','invoices'],['Mahsulotlar bo‘yicha','purchase-goods']]:isReports ? reportSections : [['Saralash','sort'], ['Eksport · CSV','export'], ...(activeView!=='reserved'?[['Chop etish','print']]:[]), ['Jadval ustunlari','columns'], ['Yangilash','refresh']]).forEach(([label, route]) => {
@@ -302,7 +302,7 @@ document.querySelectorAll('[data-choice-sheet]').forEach(trigger => {
           button.setAttribute('aria-current', 'page');
           button.insertAdjacentHTML('beforeend', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>');
         }
-        button.addEventListener('click', () => { reportChoiceSheet.close(); if(isReports||isPurchase) navigate(route); else requestAnimationFrame(()=>activeView==='purchase-goods'?performGoodsAction(route):activeView==='invoices'?performInvoiceAction(route):performStockAction(route)); });
+        button.addEventListener('click', () => { reportChoiceSheet.close(); if(isReports||isPurchase) navigate(route); else requestAnimationFrame(()=>activeView==='sales'?performSalesAction(route):activeView==='purchase-goods'?performGoodsAction(route):activeView==='invoices'?performInvoiceAction(route):performStockAction(route)); });
       } else {
         button.disabled = true;
         const note = document.createElement('small'); note.textContent = 'Hali ulanmagan'; button.append(note);
@@ -334,7 +334,8 @@ const detailBack = document.getElementById('detail-back');
 const dashboard = document.getElementById('dashboard');
 const reportsPage = document.getElementById('main');
 const invoicePage = document.getElementById('invoice-report');
-let activeGoods = null;
+let activeGoods = null, activeSales = null;
+const salesPage=document.getElementById('sales-report');
 const goodsPage=document.getElementById('goods-report');
 let activeInvoice = null;
 let activeReservation = null;
@@ -345,8 +346,8 @@ let activePurchase = null;
 let activeHistoryMode = 'purchase';
 let purchaseReturn = null;
 let detailOrigin = 'reports';
-const viewPositions = { home: 0, reports: 0, invoices: 0, reserved: 0, 'purchase-goods': 0 };
-const viewFocus = { home: null, reports: null, invoices: null, reserved: null, 'purchase-goods': null };
+const viewPositions = { home: 0, reports: 0, invoices: 0, reserved: 0, 'purchase-goods': 0, sales: 0 };
+const viewFocus = { home: null, reports: null, invoices: null, reserved: null, 'purchase-goods': null, sales: null };
 let returning = false;
 history.scrollRestoration = 'manual';
 
@@ -605,7 +606,7 @@ function showProduct(product, purchase = null, mode = 'purchase') {
 }
 
 function rememberView() {
-  if (!activeView || activeProduct || activeInvoice || activeReservation || activeGoods) return;
+  if (!activeView || activeProduct || activeInvoice || activeReservation || activeGoods || activeSales) return;
   viewPositions[activeView] = window.scrollY;
   viewFocus[activeView] = document.activeElement;
 }
@@ -617,7 +618,7 @@ function navigate(view, stockStatus) {
     render();
     viewPositions.reports = 0;
   }
-  if (activeView === view && !activeProduct && !activeInvoice && !activeReservation && !activeGoods) {
+  if (activeView === view && !activeProduct && !activeInvoice && !activeReservation && !activeGoods && !activeSales) {
     if (stockStatus !== undefined) {
       window.scrollTo(0, 0);
       document.getElementById('reports-title').focus({preventScroll: true});
@@ -629,19 +630,26 @@ function navigate(view, stockStatus) {
 }
 function syncRoute() {
   const wasLabels = Boolean(activeLabels);
-  const before = {invoiceLine:activeInvoiceLine,goods:activeGoods, view: activeView, product: activeProduct, entry: activePurchase, mode: activeHistoryMode, invoice: activeInvoice, reservation: activeReservation};
+  const before = {sales:activeSales,invoiceLine:activeInvoiceLine,goods:activeGoods, view: activeView, product: activeProduct, entry: activePurchase, mode: activeHistoryMode, invoice: activeInvoice, reservation: activeReservation};
   applyRoute();
-  const changed = before.invoiceLine !== activeInvoiceLine || before.goods !== activeGoods || wasLabels !== Boolean(activeLabels) || before.reservation !== activeReservation || before.invoice !== activeInvoice || before.view !== activeView || before.product !== activeProduct || before.entry !== activePurchase || before.mode !== activeHistoryMode;
+  const changed = before.sales !== activeSales || before.invoiceLine !== activeInvoiceLine || before.goods !== activeGoods || wasLabels !== Boolean(activeLabels) || before.reservation !== activeReservation || before.invoice !== activeInvoice || before.view !== activeView || before.product !== activeProduct || before.entry !== activePurchase || before.mode !== activeHistoryMode;
   if (!changed) return;
   // Cancel outgoing motion so fast navigation never leaves a stale effect.
   motionAnimations.forEach(animation => animation.cancel());
   const historyOnly = activeProduct && before.product === activeProduct && !before.entry && !activePurchase && before.mode !== activeHistoryMode;
-  const backwards = (before.invoiceLine && !activeInvoiceLine) || (before.goods && !activeGoods) || (wasLabels && !activeLabels) || (before.reservation && !activeReservation) || (before.invoice && !activeInvoice) || (before.entry && !activePurchase) || (before.product && !activeProduct) || (!before.product && before.view === 'reports' && activeView === 'home');
-  const target = activeGoods ? detailContent : activeReservation ? detailContent : activeInvoice ? detailContent : activeProduct ? (historyOnly ? detailContent.querySelector('.purchase-history') : detailContent) : activeView === 'home' ? dashboard : activeView === 'invoices' ? invoicePage : activeView==='purchase-goods'?goodsPage:reportsPage;
+  const backwards = (before.sales && !activeSales) || (before.invoiceLine && !activeInvoiceLine) || (before.goods && !activeGoods) || (wasLabels && !activeLabels) || (before.reservation && !activeReservation) || (before.invoice && !activeInvoice) || (before.entry && !activePurchase) || (before.product && !activeProduct) || (!before.product && before.view === 'reports' && activeView === 'home');
+  const target = activeSales ? detailContent : activeGoods ? detailContent : activeReservation ? detailContent : activeInvoice ? detailContent : activeProduct ? (historyOnly ? detailContent.querySelector('.purchase-history') : detailContent) : activeView === 'home' ? dashboard : activeView === 'invoices' ? invoicePage : activeView==='sales'?salesPage:activeView==='purchase-goods'?goodsPage:reportsPage;
   enterContent(target, backwards ? -1 : 1, historyOnly ? 12 : 24);
 }
 function applyRoute() {
   returning = false;
+  if(salesFilterSheet.open)salesFilterSheet.close();
+  const salesId=new URLSearchParams(location.hash.slice(1)).get('sales');
+  const salesItem=salesId&&[...filteredSales(),...salesRows,...groupSales(salesRows)].find(row=>row.id===salesId);
+  if(salesItem){showSales(salesItem);return;}
+  if(salesId)history.replaceState(null,'','#sales');
+  const leavingSales=Boolean(activeSales);activeSales=null;
+  if(location.hash!=='#sales')salesPage.hidden=true;
   if(goodsFilterSheet.open)goodsFilterSheet.close();
   const goodsId=new URLSearchParams(location.hash.slice(1)).get('goods');
   const goodsItem=goodsId && [...filteredGoods(),...goodsRows,...groupGoods(goodsRows)].find(row=>row.id===goodsId);
@@ -685,10 +693,10 @@ function applyRoute() {
     showProduct(product, entry || null, mode); return;
   }
   if (code) history.replaceState(null, '', '#reports');
-  const view = location.hash === '#purchase-goods' ? 'purchase-goods' : location.hash === '#reserved' ? 'reserved' : location.hash === '#invoices' ? 'invoices' : location.hash === '#reports' ? 'reports' : 'home';
-  const fromDetail = leavingGoods || Boolean(activeProduct || activeInvoice || activeReservation || activeGoods);
+  const view = location.hash === '#sales' ? 'sales' : location.hash === '#purchase-goods' ? 'purchase-goods' : location.hash === '#reserved' ? 'reserved' : location.hash === '#invoices' ? 'invoices' : location.hash === '#reports' ? 'reports' : 'home';
+  const fromDetail = leavingSales || leavingGoods || Boolean(activeProduct || activeInvoice || activeReservation || activeGoods);
   if (!fromDetail && activeView === view) return;
-  if(!leavingGoods)rememberView();
+  if(!leavingGoods&&!leavingSales)rememberView();
   activeProduct = null;
   activeStockLot = null;
   activeInvoice = null;
@@ -701,12 +709,14 @@ function applyRoute() {
   dashboard.hidden = view !== 'home';
   reportsPage.hidden = !['reports','reserved'].includes(view);
   invoicePage.hidden = view !== 'invoices';
+  salesPage.hidden=view!=='sales';
+  if(view==='sales')renderSales();
   goodsPage.hidden=view!=='purchase-goods';
   if(view==='purchase-goods')renderGoods();
   updateReportNavigation(view);
-  document.title = `${view === 'home' ? 'Bosh sahifa' : ['invoices','purchase-goods'].includes(view) ? 'Sotib olish' : view==='reserved'?'Zaxiralangan mahsulotlar':'Qoldiq'} · Rizo Store`;
+  document.title = `${view === 'home' ? 'Bosh sahifa' : view==='sales'?'Mahsulot bo‘yicha sotish':['invoices','purchase-goods'].includes(view) ? 'Sotib olish' : view==='reserved'?'Zaxiralangan mahsulotlar':'Qoldiq'} · Rizo Store`;
   document.querySelectorAll('.nav-item[data-route]').forEach(button => {
-    if (button.dataset.route === (['invoices','purchase-goods','reserved'].includes(view) ? 'reports' : view)) button.setAttribute('aria-current', 'page');
+    if (button.dataset.route === (['invoices','purchase-goods','reserved','sales'].includes(view) ? 'reports' : view)) button.setAttribute('aria-current', 'page');
     else button.removeAttribute('aria-current');
   });
   window.scrollTo(0, viewPositions[view]);
@@ -714,10 +724,11 @@ function applyRoute() {
   if (fromDetail && focus?.isConnected && focus !== document.body && !focus.closest('[hidden]')) {
     focus.focus({preventScroll: true});
   } else {
-    document.getElementById(view === 'home' ? 'home-title' : view==='purchase-goods'?'goods-report-title':view === 'invoices' ? 'invoice-report-title' : 'reports-title').focus({preventScroll: true});
+    document.getElementById(view === 'home' ? 'home-title' : view==='sales'?'sales-report-title':view==='purchase-goods'?'goods-report-title':view === 'invoices' ? 'invoice-report-title' : 'reports-title').focus({preventScroll: true});
   }
 }
 function goBack() {
+  if(activeSales){if(returning)return;returning=true;if(history.state?.rizoSales)history.back();else{history.replaceState(null,'','#sales');syncRoute();}return;}
   if(activeGoods){if(returning)return;returning=true;if(history.state?.rizoGoods)history.back();else{history.replaceState(null,'','#purchase-goods');syncRoute();}return;}
   if(activeLabels){if(returning)return;returning=true;if(history.state?.rizoLabels)history.back();else{history.replaceState(null,'',`#invoice=${activeLabels}`);syncRoute();}return;}
   if(activeReservation){if(returning)return;returning=true;if(history.state?.rizoReservation)history.back();else{history.replaceState(null,'','#reserved');syncRoute();}return;}
@@ -758,6 +769,8 @@ document.addEventListener('click', event => {
   }
   const invoiceLineLink=event.target.closest('a[data-invoice-line]');
   if(invoiceLineLink){event.preventDefault();Object.assign(invoiceItemView(),{scroll:window.scrollY,focusLine:invoiceLineLink.dataset.invoiceLine});history.pushState({rizoInvoiceLine:true},'',invoiceLineLink.getAttribute('href'));syncRoute();return;}
+  const salesLink=event.target.closest('a[data-sales]');
+  if(salesLink){event.preventDefault();history.pushState({rizoSales:true},'',salesLink.getAttribute('href'));syncRoute();return;}
   const goodsLink=event.target.closest('a[data-goods]');
   if(goodsLink){event.preventDefault();history.pushState({rizoGoods:true},'',goodsLink.getAttribute('href'));syncRoute();return;}
   const reservedLink=event.target.closest('a[data-reservation]');
@@ -1271,6 +1284,140 @@ goodsFilterSheet.addEventListener('cancel',event=>{if(goodsChoosing){event.preve
 goodsFilterSheet.addEventListener('click',event=>{if(event.target!==goodsFilterSheet)return;const rect=goodsFilterSheet.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)goodsFilterSheet.close();});
 
 renderGoods();
+
+// Synthetic sales lines; source fields are preserved without copying Store records.
+const salesRows=Array.from({length:16},(_,index)=>{
+  const p=products[index%products.length],quantity=index===5?900:index===8?-2:2+index%5;
+  const type=index===8?'Qaytarish':['Sotish','Qarzga','Bekor qilingan','Internet do‘kon'][index%4];
+  const total=Math.round(quantity*p.salePrice*100)/100;
+  return {...p,id:`SOT-${String(index+1).padStart(3,'0')}`,name:index===14?'Namuna-UzunMahsulotNomi'.repeat(6):p.name,date:`2026-10-${String(6-index%6).padStart(2,'0')}`,time:['09:15','12:30','16:45'][index%3],quantity,cost:p.price,sale:p.salePrice,total,paid:Math.round((type==='Qarzga'?total/2:total)*100)/100,difference:0,synced:index%3?`2026-10-${String(6-index%6).padStart(2,'0')}T17:00`:'',contact:index%2?'Ikkinchi namuna kontakt':'Namuna kontakt',employee:index%2?'Ikkinchi namuna xodim':'Namuna xodim',type,syncState:index%3?'Yuborilgan':'Yuborilmagan',batch:`NAM-SOTUV-${index+1}`};
+});
+// Repeated lines exercise grouping without mixing prices, currencies or parties.
+salesRows[6]={...salesRows[0],id:'SOT-007',date:'2026-10-04',quantity:3,total:3*salesRows[0].sale,paid:3*salesRows[0].sale};
+const salesColumnDefs=[['rowNumber','№',(_p,i)=>i+1],['date','Yaratilgan sana',p=>`${dateLabel(p.date)} · ${p.time}`],['name','Mahsulot nomlari',p=>p.name],['variant','Variatsiya',p=>p.variant||'—'],['barcode','Shtrix-kod',p=>p.barcode],['quantity','Miqdori',p=>p.quantity],['unit','O‘lchov birligi',p=>p.unit],['cost','Sotib olish narxi',p=>p.cost],['sale','Sotish narxi',p=>p.sale],['total','Umumiy to‘lov miqdori',p=>p.total],['paid','To‘langan',p=>p.paid],['difference','Tafovut',p=>p.difference],['currency','Valyuta',p=>p.currency],['branch','Filial',p=>p.branch],['warehouse','Ombor',p=>p.warehouse],['supplier','Ta’minotchi',p=>p.supplier],['synced','Sinxronizatsiya sanasi',p=>p.synced?`${dateLabel(p.synced.slice(0,10))} · ${p.synced.slice(11,16)}`:'—'],['batch','Ishlab chiqarish raqami',p=>p.batch||'—']];
+let salesColumns=salesColumnDefs.map(([key])=>key),salesPageNumber=1,salesSort={key:'',direction:'desc'};
+try{const saved=JSON.parse(localStorage.getItem('rizo-sales-columns-v1'));if(Array.isArray(saved)&&saved.includes('name'))salesColumns=[...new Set(saved.filter(key=>salesColumnDefs.some(([id])=>key===id)))];}catch{}
+const salesFilterLabels={contact:'Kontaktlar',branch:'Filial',supplier:'Ta’minotchi',warehouse:'Ombor',unit:'O‘lchov birligi',employee:'Xodimlar',currency:'Valyuta',type:'Turi',syncState:'Holat',from:'Sanadan boshlab',to:'Sanagacha',group:'Guruhlash'};
+let salesFilters={},salesDraft={},salesChoosing=null,salesOverflow='';
+const salesSearch=document.getElementById('sales-search'),salesBarcode=document.getElementById('sales-barcode'),salesFilterSheet=document.getElementById('sales-filter-sheet'),salesFilterBody=document.getElementById('sales-filter-body'),salesFilterChoices=document.getElementById('sales-filter-choices'),salesOptionSearch=document.getElementById('sales-option-search'),salesFilterTrigger=document.getElementById('sales-filter-trigger');
+function groupSales(rows){
+  const groups=new Map();
+  rows.forEach(row=>{
+    // Never collapse currencies, variants, prices, suppliers or batch metadata.
+    const key=JSON.stringify(['barcode','name','variant','unit','currency','cost','sale','branch','warehouse','supplier','contact','employee','type','syncState','batch'].map(key=>row[key]));
+    if(!groups.has(key))groups.set(key,{...row,members:[row],id:`G-${row.id}`});
+    else{const group=groups.get(key);group.members.push(row);['quantity','total','paid','difference'].forEach(key=>group[key]+=row[key]);if(`${row.date}T${row.time}`>`${group.date}T${group.time}`){group.date=row.date;group.time=row.time;}if(row.synced>group.synced){group.synced=row.synced;}}
+  });return [...groups.values()];
+}
+function filteredSales(){
+  const query=salesSearch.value.trim().toLocaleLowerCase('uz'),barcode=salesBarcode.value.trim().toLocaleLowerCase('uz');
+  const rows=salesRows.filter(p=>p.name.toLocaleLowerCase('uz').includes(query)&&p.barcode.toLocaleLowerCase('uz').includes(barcode)&&Object.entries(salesFilters).every(([key,value])=>!value||key==='group'||(key==='from'?`${p.date}T${p.time}`>=value:key==='to'?`${p.date}T${p.time}`<=value:p[key]===value)));
+  return sortReportRows(salesFilters.group?groupSales(rows):rows,salesColumnDefs,salesSort);
+}
+function salesTotals(rows){return ['UZS','USD'].map(currency=>({currency,total:Math.round(rows.filter(p=>p.currency===currency).reduce((sum,p)=>sum+p.total,0)*100)/100}));}
+function salesTotalsMarkup(rows){return salesTotals(rows).map(t=>`<section class="purchase-total"><h3>${t.currency}</h3><dl><div><dt>Umumiy hisob</dt><dd>${money(t.total,t.currency)}</dd></div></dl></section>`).join('');}
+function salesValue(value){return typeof value==='number'?format(value):value??'—';}
+function salesTableMarkup(rows,links=true,offset=0){const columns=salesColumns.map(key=>salesColumnDefs.find(([id])=>key===id));return `<table><thead><tr>${columns.map(([key,label])=>sortHeader(key,label,'sales',links)).join('')}</tr></thead><tbody>${rows.map((p,i)=>`<tr>${columns.map(([key,,value])=>`<td data-column="${key}" class="${typeof value(p,i)==='number'?'numeric':''}">${key==='name'&&links?`<a class="product-link" data-sales href="#sales=${p.id}">${p.name}</a>`:salesValue(value(p,i+offset))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;}
+function resetSalesPage(){salesPageNumber=1;renderSales();}
+function renderSales(){
+  const rows=filteredSales(),pages=Math.max(1,Math.ceil(rows.length/10));salesPageNumber=Math.max(1,Math.min(salesPageNumber,pages));const offset=(salesPageNumber-1)*10,visible=rows.slice(offset,offset+10);
+  document.getElementById('sales-count').textContent=`${rows.length} ta ${salesFilters.group?'guruh':'sotuv yozuvi'}`;
+  document.getElementById('sales-cards').innerHTML=visible.map(p=>`<article class="stock-card sales-card"><div class="card-head"><h2><a class="product-link" data-sales href="#sales=${p.id}">${p.name}</a></h2><span class="currency">${p.currency}</span></div><p class="goods-meta">${dateLabel(p.date)} · ${p.variant&&p.variant!=='—'?p.variant:p.barcode}${p.members?.length>1?` · ${p.members.length} ta yozuv`:''}</p><dl class="goods-card-values"><div><dt>Miqdori</dt><dd>${format(p.quantity)} <small>${p.unit}</small></dd></div><div><dt>To‘langan</dt><dd>${format(p.paid)} <small>${p.currency}</small></dd></div><div><dt>Umumiy to‘lov</dt><dd>${format(p.total)} <small>${p.currency}</small></dd></div></dl><div class="invoice-card-footer"><span>${p.supplier}</span><span class="invoice-detail-hint" aria-hidden="true">Tafsilot ${icon('chevronRight')}</span></div></article>`).join('');
+  document.getElementById('sales-table').innerHTML=salesTableMarkup(visible,true,offset);
+  ['sales-cards','sales-table'].forEach(id=>document.getElementById(id).hidden=!rows.length);document.getElementById('sales-empty').hidden=!!rows.length;
+  const pager=document.getElementById('sales-pagination');pager.hidden=pages<=1;pager.innerHTML=`<button class="outline-button" data-sales-page="${salesPageNumber-1}" ${salesPageNumber===1?'disabled':''} aria-label="Oldingi sotuv sahifasi">${icon('chevronLeft')}</button><span>${salesPageNumber} / ${pages}</span><button class="outline-button" data-sales-page="${salesPageNumber+1}" ${salesPageNumber===pages?'disabled':''} aria-label="Keyingi sotuv sahifasi">${icon('chevronRight')}</button>`;
+  document.getElementById('sales-totals').innerHTML=salesTotalsMarkup(rows);
+  const chips=document.getElementById('sales-filter-chips');chips.replaceChildren();const active=Object.entries(salesFilters).filter(([,value])=>value);
+  active.forEach(([key,value])=>{const button=document.createElement('button');button.className='filter-chip';button.textContent=`${salesFilterLabels[key]}: ${key==='group'?'Ha':['from','to'].includes(key)?`${dateLabel(value.slice(0,10))} ${value.slice(11,16)}`:value} ×`;button.setAttribute('aria-label',`${salesFilterLabels[key]} filtrini olib tashlash`);button.addEventListener('click',()=>{delete salesFilters[key];resetSalesPage();salesFilterTrigger.focus({preventScroll:true});});chips.append(button);});
+  const badge=document.getElementById('sales-filter-count');badge.hidden=!active.length;badge.textContent=active.length;animateResults(salesPage);
+}
+function performSalesAction(action){
+  if(action==='sort'){openSortSheet('sales');return;}
+  if(action==='refresh'){renderSales();document.getElementById('report-announcement').textContent='Sinov sotuv hisoboti yangilandi.';return;}
+  if(action==='columns'){columnContext='sales';document.querySelector('#stock-columns-sheet .choice-note').textContent='Desktop jadvali, eksport va chop etish uchun. Mahsulot nomi doim ko‘rinadi.';stockColumnDraft=[...salesColumns,...salesColumnDefs.map(([key])=>key).filter(key=>!salesColumns.includes(key))].map(key=>({key,visible:salesColumns.includes(key)}));renderStockColumnChoices();openStockDialog(stockColumnsSheet);return;}
+  const rows=filteredSales(),columns=salesColumns.map(key=>salesColumnDefs.find(([id])=>id===key));
+  if(action==='export'){const url=URL.createObjectURL(new Blob([reportCSV({rows,columns})],{type:'text/csv;charset=utf-8;'}));const link=document.createElement('a');link.href=url;link.download='rizo-sotuv-mahsulotlar.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);document.getElementById('report-announcement').textContent=`${rows.length} ta sotuv yozuvi CSV faylga chiqarildi.`;}
+  if(action==='print'){const html=`<h1>Mahsulot bo‘yicha sotish</h1><p>Sinov ma’lumotlari · ${rows.length} ta qator</p>${rows.length?salesTableMarkup(rows,false):'<p>Mahsulot topilmadi.</p>'}<div class="purchase-totals">${salesTotalsMarkup(rows)}</div>`;document.getElementById('stock-print-content').innerHTML=html;document.getElementById('print-area').innerHTML=html;openStockDialog(stockPrintPreview);}
+}
+function showSales(item){
+  if(activeSales===item.id)return;rememberView();activeSales=item.id;activeGoods=null;activeLabels=null;activeInvoiceLine=null;activeProduct=null;activeInvoice=null;activeReservation=null;activePurchase=null;
+  workspace.hidden=true;invoicePage.hidden=true;goodsPage.hidden=true;salesPage.hidden=true;productPage.hidden=false;detailBack.setAttribute('aria-label','Sotuv mahsulotlariga qaytish');document.getElementById('detail-page-label').textContent='Sotuv mahsuloti';
+  const summary=document.createElement('section');summary.className='detail-summary';summary.innerHTML=`<div class="detail-kicker"><span>${dateLabel(item.date)} · ${item.time}</span><span class="currency">${item.currency}</span></div><h1 id="product-title" tabindex="-1">${item.name}</h1><p>${item.barcode}</p>`;
+  const info=document.createElement('section');info.className='detail-information';info.innerHTML='<h2>Sotuv ma’lumotlari</h2><dl class="detail-fields"></dl>';info.querySelector('dl').append(...salesColumnDefs.filter(([key])=>key!=='rowNumber').map(([key,label,value])=>field(label,['cost','sale','total','paid','difference'].includes(key)?money(value(item),item.currency):['quantity'].includes(key)?`${format(value(item))} ${item.unit}`:salesValue(value(item)))));
+  detailContent.classList.add('is-purchase-detail');detailContent.replaceChildren(summary,info);
+  if(item.members?.length>1){const section=document.createElement('section');section.className='detail-information';section.innerHTML='<h2>Guruhdagi sotuvlar</h2>';item.members.forEach(row=>{const a=document.createElement('a');a.className='goods-member outline-button';a.href=`#sales=${row.id}`;a.dataset.sales='';a.textContent=`${dateLabel(row.date)} · ${format(row.quantity)} ${row.unit} · ${format(row.total)} ${row.currency}`;section.append(a);});detailContent.append(section);}
+  document.title=`${item.name} · Sotuv · Rizo Store`;window.scrollTo(0,0);summary.querySelector('h1').focus({preventScroll:true});
+}
+salesBarcode.addEventListener('input',resetSalesPage);
+document.addEventListener('click',event=>{const action=event.target.closest('[data-sales-action]');if(action){performSalesAction(action.dataset.salesAction);return;}const page=event.target.closest('[data-sales-page]');if(page){salesPageNumber=Number(page.dataset.salesPage);renderSales();document.getElementById('sales-report-title').focus({preventScroll:true});window.scrollTo(0,0);}});
+
+function showSalesFilterFields(focusKey) {
+  salesChoosing = null;
+  document.getElementById('sales-filter-title').textContent = 'Sotuv filtri';
+  document.getElementById('sales-filter-back').hidden = true;
+  salesFilterBody.hidden = false; salesFilterChoices.hidden = true;
+  document.getElementById('sales-filter-footer').hidden = false;
+  document.getElementById('sales-filter-error').textContent = '';
+  salesFilterBody.replaceChildren();
+  Object.entries(salesFilterLabels).filter(([key])=>!['from','to','group'].includes(key)).forEach(([key,label])=>{
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'filter-field'; button.dataset.salesField = key;
+    const title = document.createElement('span'); title.className = 'filter-label'; title.textContent = label;
+    const value = document.createElement('strong'); value.textContent = salesDraft[key] || 'Barchasi';
+    const arrow = document.createElement('span'); arrow.className = 'field-arrow'; arrow.innerHTML = icon('chevronRight'); arrow.setAttribute('aria-hidden','true');
+    button.append(title,value,arrow); button.addEventListener('click',()=>showSalesChoices(key)); salesFilterBody.append(button);
+  });
+  const dates = document.createElement('div'); dates.className = 'history-date-fields';
+  ['from','to'].forEach(key=>{
+    const label = document.createElement('label'); const name = document.createElement('span'); name.textContent = salesFilterLabels[key];
+    const input = document.createElement('input'); input.type = 'datetime-local'; input.id = `sales-date-${key}`; input.value = salesDraft[key] || ''; input.setAttribute('aria-describedby','sales-filter-error');
+    input.addEventListener('input',()=>{salesDraft[key]=input.value;document.getElementById('sales-filter-error').textContent='';});label.append(name,input); dates.append(label);
+  });
+  salesFilterBody.append(dates);
+  const grouping=document.createElement('label');grouping.className='filter-option';
+  const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=!!salesDraft.group;checkbox.addEventListener('change',()=>salesDraft.group=checkbox.checked);
+  grouping.append(checkbox,document.createTextNode('Guruhlash'));salesFilterBody.append(grouping);
+  if (focusKey) salesFilterBody.querySelector(`[data-sales-field="${focusKey}"]`)?.focus({preventScroll:true});
+  if (salesFilterSheet.open) enterContent(salesFilterBody,-1,12);
+}
+function renderSalesChoices() {
+  const list = document.getElementById('sales-option-list'); list.replaceChildren();
+  const query = salesOptionSearch.value.trim().toLocaleLowerCase('uz');
+  const values = ['',...new Set(salesChoosing==='type'?['Qaytarish','Sotish','Qarzga','Bekor qilingan','Internet do‘kon']:salesChoosing==='syncState'?['Yuborilgan','Yuborilmagan']:salesRows.map(item=>item[salesChoosing]))].filter(value=>(value || 'Barchasi').toLocaleLowerCase('uz').includes(query));
+  values.forEach(value=>{
+    const label = document.createElement('label'); label.className = 'filter-option';
+    const input = document.createElement('input'); input.type = 'radio'; input.name = 'sales-choice'; input.value = value; input.checked = (salesDraft[salesChoosing] || '') === value;
+    const name = document.createElement('span'); name.textContent = value || 'Barchasi';
+    input.addEventListener('click',()=>{const key = salesChoosing;salesDraft[key]=value;showSalesFilterFields(key);}); label.append(input,name); list.append(label);
+  });
+  document.getElementById('sales-no-options').hidden = !!values.length;
+}
+function showSalesChoices(key) {
+  salesChoosing = key; document.getElementById('sales-filter-title').textContent = salesFilterLabels[key];
+  document.getElementById('sales-filter-back').hidden = false;
+  salesFilterBody.hidden = true; salesFilterChoices.hidden = false;
+  document.getElementById('sales-filter-footer').hidden = true;
+  salesOptionSearch.value = ''; salesOptionSearch.closest('label').hidden = !['contact','employee','supplier','warehouse','branch'].includes(key);
+  renderSalesChoices(); document.querySelector('#sales-option-list input:checked')?.focus({preventScroll:true}); enterContent(salesFilterChoices,1,12);
+}
+salesSearch.addEventListener('input', resetSalesPage);
+document.getElementById('sales-clear').addEventListener('click',()=>{salesFilters={};salesSearch.value='';salesBarcode.value='';resetSalesPage();salesSearch.focus();});
+salesFilterTrigger.addEventListener('click',()=>{
+  salesDraft={...salesFilters};showSalesFilterFields();salesOverflow=document.body.style.overflow;document.body.style.overflow='hidden';salesFilterSheet.showModal();salesFilterTrigger.setAttribute('aria-expanded','true');
+});
+salesOptionSearch.addEventListener('input',renderSalesChoices);
+document.getElementById('sales-filter-back').addEventListener('click',()=>showSalesFilterFields(salesChoosing));
+document.getElementById('sales-filter-close').addEventListener('click',()=>salesFilterSheet.close());
+document.getElementById('sales-filter-reset').addEventListener('click',()=>{salesDraft={};showSalesFilterFields();});
+document.getElementById('sales-filter-form').addEventListener('submit',event=>{
+  event.preventDefault();if(salesChoosing)return;
+  if(salesDraft.from && salesDraft.to && salesDraft.from>salesDraft.to){document.getElementById('sales-filter-error').textContent='Boshlanish sanasi tugash sanasidan keyin bo‘lmasin.';document.getElementById('sales-date-to').focus();return;}
+  salesFilters={...salesDraft};resetSalesPage();salesFilterSheet.close();
+});
+salesFilterSheet.addEventListener('close',()=>{document.body.style.overflow=salesOverflow;salesFilterTrigger.setAttribute('aria-expanded','false');if(salesFilterTrigger.getClientRects().length)salesFilterTrigger.focus({preventScroll:true});});
+salesFilterSheet.addEventListener('cancel',event=>{if(salesChoosing){event.preventDefault();showSalesFilterFields(salesChoosing);}});
+salesFilterSheet.addEventListener('click',event=>{if(event.target!==salesFilterSheet)return;const rect=salesFilterSheet.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)salesFilterSheet.close();});
+
+renderSales();
 
 // Reserved rows are isolated examples, not copies of live Store records.
 const reservations=[
