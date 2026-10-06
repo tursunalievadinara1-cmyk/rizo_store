@@ -232,7 +232,15 @@ filterSheet.addEventListener('click', event => {
 });
 render();
 
-// Mobile access to the same report sections and actions shown on desktop.
+// Desktop and mobile share the same report destinations.
+const reportSections = [['Qoldiqlar', 'reports'], ['Sotib olish', 'invoices'], ['Mahsulot bo‘yicha sotish'], ['Qaytish'], ['Yalpi daromad'], ['Keshbek'], ['Kassa']];
+function updateReportNavigation(view) {
+  document.querySelectorAll('.report-tabs').forEach(nav => {
+    nav.innerHTML = reportSections.map(([title, route]) => route
+      ? `<button data-route="${route}" ${view === route ? 'class="selected" aria-current="page"' : ''}>${title}</button>`
+      : `<span aria-disabled="true">${title}</span>`).join('');
+  });
+}
 const reportChoiceSheet = document.getElementById('report-choice-sheet');
 let reportChoiceTrigger = null;
 let reportChoiceOverflow = '';
@@ -242,39 +250,27 @@ document.querySelectorAll('[data-choice-sheet]').forEach(trigger => {
     const isReports = trigger.dataset.choiceSheet === 'reports';
     document.getElementById('report-choice-title').textContent = isReports ? 'Hisobotlar' : 'Qo‘shimcha amallar';
     document.getElementById('report-choice-note').textContent = isReports
-      ? 'Hozir Qoldiq bo‘limi faol. Qolgan bo‘limlar hali ulanmagan.'
-      : 'Eksport va chop etish hali ulanmagan.';
+      ? 'Qoldiqlar va hisob-fakturalar faol.' : 'Eksport va chop etish hali ulanmagan.';
     const list = document.getElementById('report-choices');
     list.replaceChildren();
-    const addChoice = (label, active = false) => {
-      const button = document.createElement('button');
-      button.className = 'report-choice';
-      const name = document.createElement('span');
-      name.textContent = label;
-      const state = document.createElement('small');
-      state.textContent = active ? 'Tanlangan' : 'Hali ulanmagan';
-      button.append(name, state);
-      if (active) {
-        button.setAttribute('aria-current', 'page');
-        button.addEventListener('click', () => reportChoiceSheet.close());
-      } else button.disabled = true;
+    (isReports ? reportSections : [['Eksport'], ['Chop etish']]).forEach(([label, route]) => {
+      const button = document.createElement('button'); button.className = 'report-choice';
+      const name = document.createElement('span'); name.textContent = label; button.append(name);
+      if (route) {
+        if (route === activeView) {
+          button.setAttribute('aria-current', 'page');
+          button.insertAdjacentHTML('beforeend', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>');
+        }
+        button.addEventListener('click', () => { reportChoiceSheet.close(); navigate(route); });
+      } else {
+        button.disabled = true;
+        const note = document.createElement('small'); note.textContent = 'Hali ulanmagan'; button.append(note);
+      }
       list.append(button);
-    };
-    if (isReports) {
-      document.querySelectorAll('.report-tabs>span').forEach(item => addChoice(item.textContent, item.classList.contains('selected')));
-      const subtitle = document.createElement('p');
-      subtitle.className = 'report-choice-subtitle';
-      subtitle.textContent = 'Qoldiqlar bo‘limi';
-      list.append(subtitle);
-      document.querySelectorAll('.sub-tabs>span').forEach(item => addChoice(item.textContent, item.classList.contains('selected')));
-    } else {
-      addChoice('Eksport');
-      addChoice('Chop etish');
-    }
+    });
     reportChoiceOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    reportChoiceSheet.showModal();
-    trigger.setAttribute('aria-expanded', 'true');
+    reportChoiceSheet.showModal(); trigger.setAttribute('aria-expanded', 'true');
   });
 });
 document.getElementById('report-choice-close').addEventListener('click', () => reportChoiceSheet.close());
@@ -296,14 +292,16 @@ const detailContent = document.getElementById('detail-content');
 const detailBack = document.getElementById('detail-back');
 const dashboard = document.getElementById('dashboard');
 const reportsPage = document.getElementById('main');
+const invoicePage = document.getElementById('invoice-report');
+let activeInvoice = null;
 let activeView = null;
 let activeProduct = null;
 let activePurchase = null;
 let activeHistoryMode = 'purchase';
 let purchaseReturn = null;
 let detailOrigin = 'reports';
-const viewPositions = { home: 0, reports: 0 };
-const viewFocus = { home: null, reports: null };
+const viewPositions = { home: 0, reports: 0, invoices: 0 };
+const viewFocus = { home: null, reports: null, invoices: null };
 let returning = false;
 history.scrollRestoration = 'manual';
 
@@ -537,6 +535,8 @@ function showProduct(product, purchase = null, mode = 'purchase') {
   detailContent.append(note);
   detailContent.classList.toggle('is-purchase-detail', Boolean(purchase));
   workspace.hidden = true;
+  invoicePage.hidden = true;
+  activeInvoice = null;
   productPage.hidden = false;
   document.title = `${purchase ? `${config.detail} · ` : ''}${product.name} · Rizo Store`;
   window.scrollTo(0, restoringPurchase?.scroll || 0);
@@ -545,7 +545,7 @@ function showProduct(product, purchase = null, mode = 'purchase') {
 }
 
 function rememberView() {
-  if (!activeView || activeProduct) return;
+  if (!activeView || activeProduct || activeInvoice) return;
   viewPositions[activeView] = window.scrollY;
   viewFocus[activeView] = document.activeElement;
 }
@@ -557,7 +557,7 @@ function navigate(view, stockStatus) {
     render();
     viewPositions.reports = 0;
   }
-  if (activeView === view && !activeProduct) {
+  if (activeView === view && !activeProduct && !activeInvoice) {
     if (stockStatus !== undefined) {
       window.scrollTo(0, 0);
       document.getElementById('reports-title').focus({preventScroll: true});
@@ -568,21 +568,27 @@ function navigate(view, stockStatus) {
   syncRoute();
 }
 function syncRoute() {
-  const before = {view: activeView, product: activeProduct, entry: activePurchase, mode: activeHistoryMode};
+  const before = {view: activeView, product: activeProduct, entry: activePurchase, mode: activeHistoryMode, invoice: activeInvoice};
   applyRoute();
-  const changed = before.view !== activeView || before.product !== activeProduct || before.entry !== activePurchase || before.mode !== activeHistoryMode;
+  const changed = before.invoice !== activeInvoice || before.view !== activeView || before.product !== activeProduct || before.entry !== activePurchase || before.mode !== activeHistoryMode;
   if (!changed) return;
   // Cancel outgoing motion so fast navigation never leaves a stale effect.
   motionAnimations.forEach(animation => animation.cancel());
   const historyOnly = activeProduct && before.product === activeProduct && !before.entry && !activePurchase && before.mode !== activeHistoryMode;
-  const backwards = (before.entry && !activePurchase) || (before.product && !activeProduct) || (!before.product && before.view === 'reports' && activeView === 'home');
-  const target = activeProduct ? (historyOnly ? detailContent.querySelector('.purchase-history') : detailContent) : activeView === 'home' ? dashboard : reportsPage;
+  const backwards = (before.invoice && !activeInvoice) || (before.entry && !activePurchase) || (before.product && !activeProduct) || (!before.product && before.view === 'reports' && activeView === 'home');
+  const target = activeInvoice ? detailContent : activeProduct ? (historyOnly ? detailContent.querySelector('.purchase-history') : detailContent) : activeView === 'home' ? dashboard : activeView === 'invoices' ? invoicePage : reportsPage;
   enterContent(target, backwards ? -1 : 1, historyOnly ? 12 : 24);
 }
 function applyRoute() {
   returning = false;
   if (historySheet.open) historySheet.close();
   if (historyFilterSheet.open) historyFilterSheet.close();
+  if (invoiceFilterSheet.open) invoiceFilterSheet.close();
+  if (reportChoiceSheet.open) reportChoiceSheet.close();
+  const invoiceId = new URLSearchParams(location.hash.slice(1)).get('invoice');
+  const invoice = invoices.find(item => item.id === invoiceId);
+  if (invoice) { showInvoice(invoice); return; }
+  if (invoiceId) history.replaceState(null, '', '#invoices');
   const code = new URLSearchParams(location.hash.slice(1)).get('product');
   const product = products.find(item => item.barcode === code);
   if (product) {
@@ -593,20 +599,23 @@ function applyRoute() {
     showProduct(product, entry || null, mode); return;
   }
   if (code) history.replaceState(null, '', '#reports');
-  const view = location.hash === '#reports' ? 'reports' : 'home';
-  const fromDetail = Boolean(activeProduct);
+  const view = location.hash === '#invoices' ? 'invoices' : location.hash === '#reports' ? 'reports' : 'home';
+  const fromDetail = Boolean(activeProduct || activeInvoice);
   if (!fromDetail && activeView === view) return;
   rememberView();
   activeProduct = null;
+  activeInvoice = null;
   activePurchase = null;
   activeView = view;
   productPage.hidden = true;
   workspace.hidden = false;
   dashboard.hidden = view !== 'home';
   reportsPage.hidden = view !== 'reports';
-  document.title = `${view === 'home' ? 'Bosh sahifa' : 'Qoldiq'} · Rizo Store`;
+  invoicePage.hidden = view !== 'invoices';
+  updateReportNavigation(view);
+  document.title = `${view === 'home' ? 'Bosh sahifa' : view === 'invoices' ? 'Sotib olish' : 'Qoldiq'} · Rizo Store`;
   document.querySelectorAll('.nav-item[data-route]').forEach(button => {
-    if (button.dataset.route === view) button.setAttribute('aria-current', 'page');
+    if (button.dataset.route === (view === 'invoices' ? 'reports' : view)) button.setAttribute('aria-current', 'page');
     else button.removeAttribute('aria-current');
   });
   window.scrollTo(0, viewPositions[view]);
@@ -614,10 +623,17 @@ function applyRoute() {
   if (fromDetail && focus?.isConnected && focus !== document.body && !focus.closest('[hidden]')) {
     focus.focus({preventScroll: true});
   } else {
-    document.getElementById(view === 'home' ? 'home-title' : 'reports-title').focus({preventScroll: true});
+    document.getElementById(view === 'home' ? 'home-title' : view === 'invoices' ? 'invoice-report-title' : 'reports-title').focus({preventScroll: true});
   }
 }
 function goBack() {
+  if (activeInvoice) {
+    if (returning) return;
+    returning = true;
+    if (history.state?.rizoInvoice) history.back();
+    else { history.replaceState(null, '', '#invoices'); syncRoute(); }
+    return;
+  }
   if (!activeProduct || returning) return;
   returning = true;
   if (activePurchase) {
@@ -636,6 +652,10 @@ document.addEventListener('click', event => {
     event.preventDefault();
     navigate(route.dataset.route, route.dataset.stockStatus);
     return;
+  }
+  const invoiceLink = event.target.closest('a[data-invoice]');
+  if (invoiceLink) {
+    event.preventDefault(); history.pushState({rizoInvoice:true}, '', invoiceLink.getAttribute('href')); syncRoute(); return;
   }
   const purchaseLink = event.target.closest('a[data-purchase], a[data-entry]');
   if (purchaseLink) {
@@ -797,6 +817,133 @@ document.addEventListener('click', event => {
   else return;
   refreshHistory(); document.getElementById('history-filter-trigger')?.focus({preventScroll:true});
 });
+// Synthetic invoice metadata follows the fields observed in the Store report.
+const invoices = [
+  {id:'NAM-1001',type:'Talabnoma',supplier:'Namuna ta’minotchi',branch:'Namuna filial',warehouse:'Namuna ombor',currency:'UZS',payment:'Qarzga',paymentDate:'2026-10-20',openedBy:'Namuna xodim',closedBy:'Namuna xodim',date:'2026-10-05',time:'14:30'},
+  {id:'NAM-1002',type:'Zakup',supplier:'Ikkinchi namuna ta’minotchi',branch:'Namuna filial',warehouse:'Ikkinchi namuna ombor',currency:'USD',payment:'Naqd pul',paymentDate:'2026-10-04',openedBy:'Namuna xodim',closedBy:'Ikkinchi namuna xodim',date:'2026-10-04',time:'09:15'},
+  {id:'NAM-2026-10-03-UZUN-FAKTURA-RAQAMI',type:'Talabnoma',supplier:'Qurilish va santexnika mahsulotlari ta’minoti — uzun nomli namuna tashkilot',branch:'Ikkinchi namuna filial',warehouse:'Asosiy qurilish mahsulotlari saqlanadigan uzun nomli namuna ombor',currency:'UZS',payment:'Bank to‘lov',paymentDate:'2026-10-03',openedBy:'Xaridni rasmiylashtirgan uzun ismli namuna xodim',closedBy:'Namuna xodim',date:'2026-10-03',time:'16:45'},
+  {id:'NAM-1004',type:'Ko‘chirish',supplier:'Namuna ta’minotchi',branch:'Ikkinchi namuna filial',warehouse:'Ikkinchi namuna ombor',currency:'UZS',payment:'—',paymentDate:'',openedBy:'Namuna xodim',closedBy:'—',date:'2026-09-28',time:'11:20'},
+  {id:'NAM-1005',type:'Zakup',supplier:'Ikkinchi namuna ta’minotchi',branch:'Namuna filial',warehouse:'Namuna ombor',currency:'USD',payment:'Qarzga',paymentDate:'',openedBy:'Ikkinchi namuna xodim',closedBy:'Namuna xodim',date:'2026-09-24',time:'10:00'},
+];
+const invoiceFilterLabels = {branch:'Filial',supplier:'Ta’minotchi',warehouse:'Ombor',currency:'Valyuta',type:'Turi',payment:'To‘lov tartibi',from:'Sanadan boshlab',to:'Sanagacha'};
+let invoiceFilters = {}, invoiceDraft = {}, invoiceChoosing = null;
+const invoiceSearch = document.getElementById('invoice-search');
+const invoiceFilterSheet = document.getElementById('invoice-filter-sheet');
+const invoiceFilterBody = document.getElementById('invoice-filter-body');
+const invoiceFilterChoices = document.getElementById('invoice-filter-choices');
+const invoiceOptionSearch = document.getElementById('invoice-option-search');
+const invoiceFilterTrigger = document.getElementById('invoice-filter-trigger');
+let invoiceOverflow = '';
+function invoiceFields(item) {
+  return [['Faktura raqami',item.id],['Turi',item.type],['Ta’minotchi',item.supplier],['Filial',item.branch],['Ombor',item.warehouse],['Valyuta',item.currency],['To‘lov tartibi',item.payment],['To‘lov sanasi',item.paymentDate ? dateLabel(item.paymentDate) : 'Ko‘rsatilmagan'],['Xaridni ochgan xodim',item.openedBy],['Xaridni yopgan xodim',item.closedBy],['Yaratilgan sana',`${dateLabel(item.date)} · ${item.time}`]];
+}
+function filteredInvoices() {
+  const query = invoiceSearch.value.trim().toLocaleLowerCase('uz');
+  return invoices.filter(item => `${item.id} ${item.supplier}`.toLocaleLowerCase('uz').includes(query)
+    && Object.entries(invoiceFilters).every(([key,value]) => !value || (key === 'from' ? item.date >= value : key === 'to' ? item.date <= value : item[key] === value)));
+}
+function renderInvoices() {
+  const rows = filteredInvoices();
+  document.getElementById('invoice-count').textContent = `${rows.length} ta hisob-faktura`;
+  const cards = document.getElementById('invoice-cards');
+  cards.innerHTML = rows.map(item => `<article class="stock-card invoice-card"><div class="card-head"><h2><a class="product-link" href="#invoice=${item.id}" data-invoice="${item.id}" aria-label="${item.id} faktura tafsiloti">${item.id}</a></h2><span class="currency">${item.currency}</span></div><p class="invoice-supplier">${item.supplier}</p><div class="invoice-card-meta"><span class="history-type">${item.type}</span><span class="status ${item.payment === 'Qarzga' ? 'low' : 'invoice-payment'}">${item.payment === '—' ? 'To‘lov ko‘rsatilmagan' : item.payment}</span></div><div class="invoice-card-footer"><time datetime="${item.date}T${item.time}">${dateLabel(item.date)} · ${item.time}</time><span class="invoice-detail-hint" aria-hidden="true">Tafsilot ›</span></div></article>`).join('');
+  document.getElementById('invoice-table-body').innerHTML = rows.map((item,index) => `<tr><td>${index+1}</td><td><a class="product-link" href="#invoice=${item.id}" data-invoice="${item.id}" aria-label="${item.id} faktura tafsiloti">${item.id}</a></td>${invoiceFields(item).slice(1).map(([,value])=>`<td>${value}</td>`).join('')}<td><button class="invoice-label-button" disabled title="Narx yorliqlarini chop etish hali ulanmagan">Narx yorliqlari</button></td></tr>`).join('');
+  cards.hidden = !rows.length;
+  document.getElementById('invoice-table').hidden = !rows.length;
+  document.getElementById('invoice-empty').hidden = !!rows.length;
+  const chips = document.getElementById('invoice-filter-chips'); chips.replaceChildren();
+  const active = Object.entries(invoiceFilters).filter(([,value])=>value);
+  active.forEach(([key,value]) => {
+    const label = `${invoiceFilterLabels[key]}: ${['from','to'].includes(key) ? dateLabel(value) : value}`;
+    const button = document.createElement('button'); button.className = 'filter-chip'; button.textContent = `${label} ×`; button.setAttribute('aria-label',`${label} filtrini olib tashlash`);
+    button.addEventListener('click',()=>{delete invoiceFilters[key];renderInvoices();invoiceFilterTrigger.focus({preventScroll:true});}); chips.append(button);
+  });
+  const badge = document.getElementById('invoice-filter-count'); badge.hidden = !active.length; badge.textContent = active.length;
+  invoiceFilterTrigger.setAttribute('aria-label', active.length ? `Faktura filtri, ${active.length} ta faol` : 'Faktura filtri');
+}
+function showInvoice(item) {
+  if (activeInvoice === item.id) return;
+  rememberView();
+  activeInvoice = item.id; activeProduct = null; activePurchase = null;
+  workspace.hidden = true; invoicePage.hidden = true; productPage.hidden = false;
+  detailBack.setAttribute('aria-label','Hisob-fakturalarga qaytish');
+  document.getElementById('detail-page-label').textContent = 'Hisob-faktura tafsiloti';
+  const summary = document.createElement('section'); summary.className = 'detail-summary';
+  summary.innerHTML = `<div class="detail-kicker"><time datetime="${item.date}T${item.time}">${dateLabel(item.date)} · ${item.time}</time><span class="currency">${item.currency}</span></div><h1 id="product-title" tabindex="-1">${item.id}</h1><p class="invoice-supplier">${item.supplier}</p><div class="invoice-card-meta"><span class="history-type">${item.type}</span><span class="status ${item.payment === 'Qarzga' ? 'low' : 'invoice-payment'}">${item.payment === '—' ? 'To‘lov ko‘rsatilmagan' : item.payment}</span></div>`;
+  const information = document.createElement('section'); information.className = 'detail-information';
+  information.innerHTML = '<h2>Faktura ma’lumotlari</h2><dl class="detail-fields"></dl>';
+  information.querySelector('dl').append(...invoiceFields(item).map(([label,value])=>field(label,value)));
+  const actions = document.createElement('section'); actions.className = 'detail-information invoice-detail-actions';
+  actions.innerHTML = '<h2>Amallar</h2><button class="outline-button" disabled>Eksport</button><button class="outline-button" disabled>Narx yorliqlari</button><p class="choice-note">Eksport va narx yorliqlarini chop etish hali ulanmagan.</p>';
+  const note = document.createElement('p'); note.className = 'stage-note'; note.textContent = 'Sinov hisob-fakturasi. Jonli omborga bog‘lanmagan.';
+  detailContent.classList.add('is-purchase-detail'); detailContent.replaceChildren(summary, information, actions, note);
+  document.title = `${item.id} · Hisob-faktura · Rizo Store`;
+  window.scrollTo(0,0); summary.querySelector('h1').focus({preventScroll:true});
+}
+function showInvoiceFilterFields(focusKey) {
+  invoiceChoosing = null;
+  document.getElementById('invoice-filter-title').textContent = 'Faktura filtri';
+  document.getElementById('invoice-filter-back').hidden = true;
+  invoiceFilterBody.hidden = false; invoiceFilterChoices.hidden = true;
+  document.getElementById('invoice-filter-footer').hidden = false;
+  document.getElementById('invoice-filter-error').textContent = '';
+  invoiceFilterBody.replaceChildren();
+  Object.entries(invoiceFilterLabels).filter(([key])=>!['from','to'].includes(key)).forEach(([key,label])=>{
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'filter-field'; button.dataset.invoiceField = key;
+    const title = document.createElement('span'); title.className = 'filter-label'; title.textContent = label;
+    const value = document.createElement('strong'); value.textContent = invoiceDraft[key] || 'Barchasi';
+    const arrow = document.createElement('span'); arrow.className = 'field-arrow'; arrow.textContent = '›'; arrow.setAttribute('aria-hidden','true');
+    button.append(title,value,arrow); button.addEventListener('click',()=>showInvoiceChoices(key)); invoiceFilterBody.append(button);
+  });
+  const dates = document.createElement('div'); dates.className = 'history-date-fields';
+  ['from','to'].forEach(key=>{
+    const label = document.createElement('label'); const name = document.createElement('span'); name.textContent = invoiceFilterLabels[key];
+    const input = document.createElement('input'); input.type = 'date'; input.id = `invoice-date-${key}`; input.value = invoiceDraft[key] || ''; input.setAttribute('aria-describedby','invoice-filter-error');
+    input.addEventListener('input',()=>{invoiceDraft[key]=input.value;document.getElementById('invoice-filter-error').textContent='';});label.append(name,input); dates.append(label);
+  });
+  invoiceFilterBody.append(dates);
+  if (focusKey) invoiceFilterBody.querySelector(`[data-invoice-field="${focusKey}"]`)?.focus({preventScroll:true});
+  if (invoiceFilterSheet.open) enterContent(invoiceFilterBody,-1,12);
+}
+function renderInvoiceChoices() {
+  const list = document.getElementById('invoice-option-list'); list.replaceChildren();
+  const query = invoiceOptionSearch.value.trim().toLocaleLowerCase('uz');
+  const values = ['',...new Set(invoices.map(item=>item[invoiceChoosing]))].filter(value=>(value || 'Barchasi').toLocaleLowerCase('uz').includes(query));
+  values.forEach(value=>{
+    const label = document.createElement('label'); label.className = 'filter-option';
+    const input = document.createElement('input'); input.type = 'radio'; input.name = 'invoice-choice'; input.value = value; input.checked = (invoiceDraft[invoiceChoosing] || '') === value;
+    const name = document.createElement('span'); name.textContent = value || 'Barchasi';
+    input.addEventListener('click',()=>{const key = invoiceChoosing;invoiceDraft[key]=value;showInvoiceFilterFields(key);}); label.append(input,name); list.append(label);
+  });
+  document.getElementById('invoice-no-options').hidden = !!values.length;
+}
+function showInvoiceChoices(key) {
+  invoiceChoosing = key; document.getElementById('invoice-filter-title').textContent = invoiceFilterLabels[key];
+  document.getElementById('invoice-filter-back').hidden = false;
+  invoiceFilterBody.hidden = true; invoiceFilterChoices.hidden = false;
+  document.getElementById('invoice-filter-footer').hidden = true;
+  invoiceOptionSearch.value = ''; invoiceOptionSearch.closest('label').hidden = !['supplier','warehouse','branch'].includes(key);
+  renderInvoiceChoices(); document.querySelector('#invoice-option-list input:checked')?.focus({preventScroll:true}); enterContent(invoiceFilterChoices,1,12);
+}
+invoiceSearch.addEventListener('input', renderInvoices);
+document.getElementById('invoice-clear').addEventListener('click',()=>{invoiceFilters={};invoiceSearch.value='';renderInvoices();invoiceSearch.focus();});
+invoiceFilterTrigger.addEventListener('click',()=>{
+  invoiceDraft={...invoiceFilters};showInvoiceFilterFields();invoiceOverflow=document.body.style.overflow;document.body.style.overflow='hidden';invoiceFilterSheet.showModal();invoiceFilterTrigger.setAttribute('aria-expanded','true');
+});
+invoiceOptionSearch.addEventListener('input',renderInvoiceChoices);
+document.getElementById('invoice-filter-back').addEventListener('click',()=>showInvoiceFilterFields(invoiceChoosing));
+document.getElementById('invoice-filter-close').addEventListener('click',()=>invoiceFilterSheet.close());
+document.getElementById('invoice-filter-reset').addEventListener('click',()=>{invoiceDraft={};showInvoiceFilterFields();});
+document.getElementById('invoice-filter-form').addEventListener('submit',event=>{
+  event.preventDefault();if(invoiceChoosing)return;
+  if(invoiceDraft.from && invoiceDraft.to && invoiceDraft.from>invoiceDraft.to){document.getElementById('invoice-filter-error').textContent='Boshlanish sanasi tugash sanasidan keyin bo‘lmasin.';document.getElementById('invoice-date-to').focus();return;}
+  invoiceFilters={...invoiceDraft};renderInvoices();invoiceFilterSheet.close();
+});
+invoiceFilterSheet.addEventListener('close',()=>{document.body.style.overflow=invoiceOverflow;invoiceFilterTrigger.setAttribute('aria-expanded','false');if(invoiceFilterTrigger.getClientRects().length)invoiceFilterTrigger.focus({preventScroll:true});});
+invoiceFilterSheet.addEventListener('cancel',event=>{if(invoiceChoosing){event.preventDefault();showInvoiceFilterFields(invoiceChoosing);}});
+invoiceFilterSheet.addEventListener('click',event=>{if(event.target!==invoiceFilterSheet)return;const rect=invoiceFilterSheet.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)invoiceFilterSheet.close();});
+renderInvoices();
+
 detailBack.addEventListener('click', goBack);
 window.addEventListener('popstate', syncRoute);
 window.addEventListener('hashchange', syncRoute);

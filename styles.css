@@ -225,3 +225,25 @@ a.product-link{display:inline-block}
 :root[data-keyboard-navigation] :is(a,button,summary):focus-visible{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px}
 :root[data-keyboard-navigation] .icon-button:focus-visible{background:var(--pale)}
 :root[data-keyboard-navigation] input:focus-visible{border-color:var(--muted)}
+
+/* Invoice reports retain the desktop table and use compact cards on mobile. */
+.report-tabs>button{border:0;background:transparent;border-radius:6px;padding:6px 12px;white-space:nowrap;font-size:13px}
+.report-tabs>button.selected{background:var(--primary);color:white}
+.invoice-caption{font-size:13px;font-weight:700;color:var(--muted);margin:16px 0 10px}
+.invoice-card{padding:16px}
+.invoice-supplier{font-size:14px;line-height:1.5;overflow-wrap:anywhere;margin:12px 0;color:var(--ink)}
+.invoice-card-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.invoice-card .status{margin-top:0}
+.invoice-payment{background:#eef1f6;color:var(--ink)}
+.invoice-card-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;border-top:1px solid var(--line);padding-top:12px;margin-top:14px;font-size:12px;color:var(--muted)}
+.invoice-detail-hint{white-space:nowrap;color:var(--primary);font-weight:800}
+.invoice-label-button{border:1px solid var(--line);border-radius:7px;background:var(--bg);padding:8px;font-size:12px}
+#invoice-table td:nth-child(4),#invoice-table td:nth-child(6){white-space:normal;min-width:180px;max-width:280px;overflow-wrap:anywhere}
+#invoice-filter-trigger{position:relative}
+.invoice-filter-form{display:flex;flex-direction:column;min-height:0}
+.invoice-choice-search{max-width:none;margin-bottom:8px;flex:none}
+.invoice-detail-actions .outline-button{margin:0 8px 8px 0}
+@media(max-width:760px){
+  .invoice-caption{margin-top:0}
+  #invoice-filter-count{position:absolute;right:-5px;top:-5px}
+}
