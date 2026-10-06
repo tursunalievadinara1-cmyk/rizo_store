@@ -622,7 +622,7 @@ document.addEventListener('click', event => {
     return;
   }
   if (!event.target.closest('#history-picker')) return;
-  document.getElementById('history-mode-options').innerHTML = Object.entries(historyTitles).map(([mode, title]) => `<button class="report-choice" data-history-mode="${mode}" ${historyModes[mode] ? '' : 'disabled'} ${mode === activeHistoryMode ? 'aria-current="page"' : ''}><span>${title}</span><small>${mode === activeHistoryMode ? 'Tanlangan' : historyModes[mode] ? '' : 'Tayyorlanmoqda'}</small></button>`).join('');
+  document.getElementById('history-mode-options').innerHTML = Object.entries(historyTitles).map(([mode, title]) => `<button class="report-choice" data-history-mode="${mode}" ${historyModes[mode] ? '' : 'disabled'} ${mode === activeHistoryMode ? 'aria-current="page"' : ''}><span>${title}</span>${mode === activeHistoryMode ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>' : historyModes[mode] ? '' : '<small>Tayyorlanmoqda</small>'}</button>`).join('');
   historySheetOverflow = document.body.style.overflow;
   document.body.style.overflow = 'hidden';
   historySheet.showModal();
