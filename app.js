@@ -18,6 +18,38 @@ const purchases = products.flatMap((product, index) => {
     ...(index === 0 ? [{id: `${product.barcode}-03`, product: product.barcode, date: '2026-09-10', time: '11:05', quantity: 20, remaining: 0, currency: 'USD', cost: 0.65, sale: 0.85, order: 'NAM-0998', warehouse: 'Namuna ombor', supplier: 'Namuna ta’minotchi', type: 'Zayavka orqali'}] : []),
   ];
 });
+// Each history mode uses independent, clearly labelled sample transactions.
+const salesHistory = purchases.map((purchase, index) => {
+  const quantity = index % 2 ? 3 : 2;
+  const total = quantity * purchase.sale;
+  return {...purchase, id: `sale-${purchase.id}`, quantity, date: '2026-10-06', time: index % 2 ? '10:20' : '09:10', buyer: purchase.product === 'DEMO-003' ? 'Qurilish loyihalari uchun mahsulot xarid qiluvchi uzun nomli namuna tashkilot' : 'Namuna xaridor', type: index % 2 ? 'Onlayn' : 'Oflayn', total, paid: index % 2 ? total * 0.75 : total};
+});
+const supplierReturns = purchases.filter(item => item.id.endsWith('-01') || item.currency === 'USD').map(item => ({...item, id: `return-${item.id}`, date: '2026-10-06', time: '11:40', quantity: 1, employee: 'Namuna xodim', reason: item.product === 'DEMO-003' ? 'Qadoq shikastlangan va mahsulot o‘lchami buyurtmada ko‘rsatilgan o‘lchamga mos kelmagan' : 'Yaroqsiz'}));
+const salesReturns = salesHistory.filter(item => ['DEMO-001', 'DEMO-003', 'DEMO-006'].includes(item.product) && item.id.endsWith('-01')).map(item => ({...item, id: `refund-${item.id}`, date: '2026-10-06', time: '12:15', quantity: 1, total: item.sale, paid: item.sale}));
+const grossHistory = [
+  ...salesHistory.map(item => ({...item, id: `gross-${item.id}`, gross: (item.sale - item.cost) * item.quantity, source: 'Sotish'})),
+  ...salesReturns.map(item => ({...item, id: `gross-${item.id}`, gross: -(item.sale - item.cost) * item.quantity, source: 'Sotuv bo‘yicha qaytarish'})),
+].sort((left, right) => `${right.date} ${right.time}`.localeCompare(`${left.date} ${left.time}`));
+const historyTitles = {purchase: 'Sotib olish', sales: 'Sotish', returns: 'Qaytish', 'sales-return': 'Sotuv bo‘yicha qaytarish', gross: 'Yalpi daromad'};
+const historyModes = {
+  purchase: {title: historyTitles.purchase, detail: 'Kirim tafsiloti', rows: purchases, fields: purchaseFields, amount: item => item.quantity * item.cost, amountLabel: 'Kirish summasi'},
+  gross: {title: historyTitles.gross, detail: 'Daromad tafsiloti', rows: grossHistory, fields: grossFields, amount: item => item.gross, amountLabel: 'Yalpi daromad', party: item => item.supplier, note: 'Yalpi daromad — barcha omborlar bo‘yicha',
+    metrics: (product, item) => [['Miqdori', `${format(item.quantity)} ${product.unit}`], ['Sotish narxi', money(item.sale, item.currency)]],
+    tags: item => `<span class="status ${item.gross < 0 ? 'zero' : 'ok'}">${item.source}</span>`,
+    totals: rows => [['Musbat qiymatlar', rows.reduce((sum, item) => sum + Math.max(item.gross, 0), 0)], ['Manfiy qiymatlar', rows.reduce((sum, item) => sum + Math.min(item.gross, 0), 0)], ['Yalpi daromad', rows.reduce((sum, item) => sum + item.gross, 0)]]},
+  'sales-return': {title: historyTitles['sales-return'], detail: 'Savdo qaytishi tafsiloti', rows: salesReturns, fields: saleReturnFields, amount: item => item.total, amountLabel: 'Qaytarish summasi', party: item => item.buyer,
+    metrics: (product, item) => [['Qaytarildi', `${format(item.quantity)} ${product.unit}`], ['Qaytarilgan to‘lov', money(item.paid, item.currency)]],
+    tags: item => `<span class="history-type">${item.type}</span><span class="status zero">Savdodan qaytish</span>`,
+    totals: rows => [['Qaytarish summasi', rows.reduce((sum, item) => sum + item.total, 0)], ['Qaytarilgan to‘lov', rows.reduce((sum, item) => sum + item.paid, 0)]]},
+  returns: {title: historyTitles.returns, detail: 'Qaytish tafsiloti', rows: supplierReturns, fields: supplierReturnFields, amount: item => item.quantity * item.cost, amountLabel: 'Qaytarish summasi', party: item => item.supplier,
+    metrics: (product, item) => [['Qaytarildi', `${format(item.quantity)} ${product.unit}`], ['Kirish narxi', money(item.cost, item.currency)]],
+    tags: item => `<span class="history-reason">Sabab: ${item.reason}</span>`,
+    totals: rows => [['Qaytarish summasi', rows.reduce((sum, item) => sum + item.quantity * item.cost, 0)]]},
+  sales: {title: historyTitles.sales, detail: 'Savdo tafsiloti', rows: salesHistory, fields: saleFields, amount: item => item.total, amountLabel: 'Jami to‘lov', party: item => item.buyer,
+    metrics: (product, item) => [['Miqdori', `${format(item.quantity)} ${product.unit}`], ['To‘langan', money(item.paid, item.currency)]],
+    tags: item => `<span class="history-type">${item.type}</span><span class="status ${item.paid < item.total ? 'low' : 'ok'}">${item.paid < item.total ? 'Qisman to‘langan' : 'To‘langan'}</span>`,
+    totals: rows => [['Jami to‘lov', rows.reduce((sum, item) => sum + item.total, 0)], ['To‘langan', rows.reduce((sum, item) => sum + item.paid, 0)], ['Qoldiq to‘lov', rows.reduce((sum, item) => sum + item.total - item.paid, 0)]]},
+};
 const dateLabel = value => value.split('-').reverse().join('.');
 const money = (value, currency) => `${format(value)} ${currency}`;
 const paths={back:'<path d="m14 5-7 7 7 7M7 12h14"/>',menu:'<path d="M4 6h16M4 12h16M4 18h16"/>',close:'<path d="m6 6 12 12M18 6 6 18"/>',search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/>',grid:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',filter:'<path d="M3 5h18l-7 8v7l-4-2v-5Z"/>',export:'<path d="M12 16V3m-4 4 4-4 4 4M4 14v7h16v-7"/>',print:'<path d="M6 9V3h12v6M6 18H3V9h18v9h-3M6 14h12v7H6Z"/>',house:'<path d="m3 10 9-7 9 7M5 9v12h14V9M9 21v-8h6v8"/>',box:'<path d="m12 3 9 5v9l-9 5-9-5V8l9-5ZM3 8l9 5 9-5M12 13v9M7.5 5.5l9 5"/>',chart:'<path d="M4 3v18h17M8 16v-5M13 16V7M18 16V4"/>',cart:'<path d="M2 3h3l3 13h11l3-9H6"/><circle cx="9" cy="21" r="1"/><circle cx="18" cy="21" r="1"/>',people:'<circle cx="9" cy="7" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M17 4a3 3 0 0 1 0 6M18 14a5 5 0 0 1 3 4v3"/>',document:'<path d="M5 3h10l4 4v14H5ZM14 3v5h5M8 12h8M8 16h8"/>'};
@@ -229,6 +261,7 @@ const reportsPage = document.getElementById('main');
 let activeView = null;
 let activeProduct = null;
 let activePurchase = null;
+let activeHistoryMode = 'purchase';
 let purchaseReturn = null;
 let detailOrigin = 'reports';
 const viewPositions = { home: 0, reports: 0 };
@@ -259,6 +292,71 @@ function purchaseFields(product, purchase) {
     ['Yakuniy narx', money(purchase.remaining * purchase.sale, purchase.currency)],
     ['Yaratilgan sana', `${dateLabel(purchase.date)} · ${purchase.time}`],
   ];
+}
+function grossFields(product, item) {
+  return [['Mahsulot nomi', product.name], ['Shtrix-kod', product.barcode], ['Ombor', item.warehouse], ['Valyuta', item.currency], ['O‘lchov birligi', product.unit], ['Filial', product.branch], ['Turkum', product.category], ['Ta’minotchi', item.supplier], ['Xaridor', item.buyer], ['Sotib olish narxi', money(item.cost, item.currency)], ['Miqdori', format(item.quantity)], ['Sotish narxi', money(item.sale, item.currency)], ['Yalpi daromad', money(item.gross, item.currency)], ['Manba turi', item.source], ['Yaratilgan sana', `${dateLabel(item.date)} · ${item.time}`]];
+}
+function saleReturnFields(product, item) {
+  return saleFields(product, item).map(([label, value]) => [label === 'To‘langan' ? 'Qaytarilgan to‘lov' : label === 'Umumiy to‘lov miqdori' ? 'Qaytarish summasi' : label, value]);
+}
+function supplierReturnFields(product, item) {
+  return [['Mahsulot nomi', product.name], ['Shtrix-kod', product.barcode], ['O‘lchov birligi', product.unit], ['Valyuta', item.currency], ['Ta’minotchi', item.supplier], ['Ombor', item.warehouse], ['Xodim', item.employee], ['Qaytish sababi', item.reason], ['Miqdori', format(item.quantity)], ['Kirish narxi', money(item.cost, item.currency)], ['Qaytarish summasi', money(item.quantity * item.cost, item.currency)], ['Yaratilgan sana', `${dateLabel(item.date)} · ${item.time}`]];
+}
+function saleFields(product, item) {
+  return [
+    ['Mahsulot nomi', product.name], ['Shtrix-kod', product.barcode], ['Ombor', item.warehouse],
+    ['Valyuta', item.currency], ['O‘lchov birligi', product.unit], ['Filial', product.branch], ['Turkum', product.category],
+    ['Xaridor', item.buyer], ['Turi', item.type], ['Sotib olish narxi', money(item.cost, item.currency)],
+    ['Miqdori', format(item.quantity)], ['Sotish narxi', money(item.sale, item.currency)],
+    ['To‘langan', money(item.paid, item.currency)], ['Umumiy to‘lov miqdori', money(item.total, item.currency)],
+    ['Yaratilgan sana', `${dateLabel(item.date)} · ${item.time}`],
+  ];
+}
+function historyLink(product, item, mode) {
+  return `#product=${product.barcode}&tab=${mode}&entry=${item.id}`;
+}
+function historyNavigation(mode) {
+  const nav = document.createElement('nav');
+  nav.className = 'history-navigation';
+  nav.setAttribute('aria-label', 'Mahsulot tarixi bo‘limlari');
+  nav.innerHTML = `<div class="history-tabs">${Object.entries(historyTitles).map(([key, title]) => `<button data-history-mode="${key}" ${historyModes[key] ? '' : 'disabled'} ${key === mode ? 'aria-current="page"' : ''}>${title}</button>`).join('')}</div>
+    <button class="history-picker" id="history-picker" aria-haspopup="dialog" aria-controls="history-mode-sheet" aria-expanded="false" aria-label="Tarix bo‘limi: ${historyTitles[mode]}"><span><small>Mahsulot tarixi</small><strong>${historyTitles[mode]}</strong></span><span aria-hidden="true">⌄</span></button>`;
+  return nav;
+}
+function transactionHistory(product, mode) {
+  if (mode === 'purchase') return purchaseHistory(product);
+  const config = historyModes[mode];
+  const rows = config.rows.filter(item => item.product === product.barcode);
+  const section = document.createElement('section');
+  section.className = 'purchase-history';
+  section.setAttribute('aria-labelledby', 'purchase-title');
+  section.innerHTML = `<div class="section-heading"><h2 id="purchase-title">${config.title}</h2><span>${rows.length} ta yozuv</span></div>${config.note ? `<p class="history-notice">${config.note}</p>` : ''}`;
+  if (!rows.length) {
+    section.innerHTML += `<div class="empty purchase-empty">${icon('box')}<h3>Ma’lumot topilmadi</h3><p>Bu mahsulotning “${config.title}” bo‘limida hali yozuv yo‘q.</p></div>`;
+    return section;
+  }
+  const cards = document.createElement('div');
+  cards.className = 'purchase-cards';
+  cards.innerHTML = rows.map(item => `<article class="purchase-card">
+    <div class="purchase-card-top"><time datetime="${item.date}T${item.time}">${dateLabel(item.date)} <span>· ${item.time}</span></time><span class="currency">${item.currency}</span></div>
+    <h3>${config.party(item)}</h3><div class="history-tags">${config.tags(item)}</div>
+    <dl class="purchase-quantities">${config.metrics(product, item).map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join('')}</dl>
+    <div class="purchase-card-bottom"><div><span>${config.amountLabel}</span><strong class="${mode === 'gross' ? (config.amount(item) < 0 ? 'amount-negative' : 'amount-positive') : ''}">${money(config.amount(item), item.currency)}</strong></div><a href="${historyLink(product, item, mode)}" data-entry="${item.id}" aria-label="${dateLabel(item.date)} ${item.time} · ${config.detail}">Tafsilot <span aria-hidden="true">›</span></a></div>
+  </article>`).join('');
+  const table = document.createElement('div');
+  table.className = 'purchase-table'; table.tabIndex = 0;
+  table.setAttribute('role', 'region'); table.setAttribute('aria-label', `${config.title} jadvali, gorizontal aylantirish mumkin`);
+  table.innerHTML = `<table><thead><tr><th scope="col">№</th>${config.fields(product, rows[0]).map(([label]) => `<th scope="col">${label}</th>`).join('')}</tr></thead><tbody>${rows.map((item, index) => `<tr><td>${index + 1}</td>${config.fields(product, item).map(([, value], fieldIndex) => `<td>${fieldIndex === 0 ? `<a class="product-link" href="${historyLink(product, item, mode)}" data-entry="${item.id}" aria-label="${dateLabel(item.date)} ${item.time} · ${config.detail}">${value}</a>` : value}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  const totals = document.createElement('div'); totals.className = 'purchase-totals';
+  totals.setAttribute('aria-label', 'Valyuta bo‘yicha yakunlar');
+  [...new Set(rows.map(item => item.currency))].forEach(currency => {
+    const block = document.createElement('section'); block.className = 'purchase-total';
+    block.innerHTML = `<h3>Jami <span class="currency">${currency}</span></h3><dl></dl>`;
+    block.querySelector('dl').append(...config.totals(rows.filter(item => item.currency === currency)).map(([label, value]) => field(label, format(value))));
+    totals.append(block);
+  });
+  section.append(cards, table, totals);
+  return section;
 }
 function purchaseLink(product, purchase) {
   return `#product=${product.barcode}&purchase=${purchase.id}`;
@@ -309,28 +407,30 @@ function purchaseHistory(product) {
   section.append(cards, table, totals, note);
   return section;
 }
-function showProduct(product, purchase = null) {
-  if (activeProduct === product.barcode && activePurchase === (purchase?.id || null)) return;
-  const restoringPurchase = !purchase && activePurchase && activeProduct === product.barcode ? purchaseReturn : null;
+function showProduct(product, purchase = null, mode = 'purchase') {
+  const config = historyModes[mode];
+  if (activeProduct === product.barcode && activePurchase === (purchase?.id || null) && activeHistoryMode === mode) return;
+  const restoringPurchase = !purchase && activePurchase && activeProduct === product.barcode && activeHistoryMode === mode && purchaseReturn?.product === product.barcode && purchaseReturn?.mode === mode ? purchaseReturn : null;
   if (purchase && !activePurchase && activeProduct === product.barcode) {
-    purchaseReturn = {scroll: window.scrollY, expanded: detailContent.querySelector('details')?.open, id: purchase.id};
+    purchaseReturn = {product: product.barcode, mode, scroll: window.scrollY, expanded: detailContent.querySelector('details')?.open, id: purchase.id};
   }
   if (!activeProduct) rememberView();
   detailOrigin = history.state?.rizoFrom === 'home' ? 'home' : (history.state?.rizoFrom === 'reports' ? 'reports' : activeView || 'reports');
   detailBack.setAttribute('aria-label', purchase ? 'Mahsulotga qaytish' : detailOrigin === 'home' ? 'Bosh sahifaga qaytish' : 'Qoldiqlarga qaytish');
-  document.getElementById('detail-page-label').textContent = purchase ? 'Kirim tafsiloti' : 'Mahsulot tafsiloti';
+  document.getElementById('detail-page-label').textContent = purchase ? config.detail : 'Mahsulot tafsiloti';
   activeProduct = product.barcode;
+  activeHistoryMode = mode;
   activePurchase = purchase?.id || null;
   const summary = document.createElement('section');
   summary.className = 'detail-summary';
   if (purchase) {
     summary.classList.add('purchase-detail-summary');
-    summary.innerHTML = `<div class="detail-kicker"><span>${dateLabel(purchase.date)} · ${purchase.time}</span><span class="currency">${purchase.currency}</span></div><h1 id="product-title" tabindex="-1"></h1><p class="purchase-detail-amount">${money(purchase.quantity * purchase.cost, purchase.currency)}<span>Kirish summasi</span></p>`;
+    summary.innerHTML = `<div class="detail-kicker"><span>${dateLabel(purchase.date)} · ${purchase.time}</span><span class="currency">${purchase.currency}</span></div><h1 id="product-title" tabindex="-1"></h1><p class="purchase-detail-amount ${mode === 'gross' ? (config.amount(purchase) < 0 ? 'amount-negative' : 'amount-positive') : ''}">${money(config.amount(purchase), purchase.currency)}<span>${config.amountLabel}</span></p>`;
     summary.querySelector('h1').textContent = product.name;
     const information = document.createElement('section');
     information.className = 'detail-information';
-    information.innerHTML = '<h2>Kirim ma’lumotlari</h2><dl class="detail-fields"></dl>';
-    information.querySelector('dl').append(...purchaseFields(product, purchase).map(([label, value]) => field(label, value)));
+    information.innerHTML = `<h2>${config.title} · ma’lumotlar</h2><dl class="detail-fields"></dl>`;
+    information.querySelector('dl').append(...config.fields(product, purchase).map(([label, value]) => field(label, value)));
     detailContent.replaceChildren(summary, information);
   } else {
     summary.innerHTML = `<div class="product-heading"><span class="product-symbol">${icon('box')}</span><div><h1 id="product-title" tabindex="-1"></h1><div class="product-identifiers"><span class="product-barcode">${product.barcode}</span>${status(product)}</div></div></div>
@@ -340,18 +440,18 @@ function showProduct(product, purchase = null) {
     summary.querySelector('.detail-fields').append(field('Turkum', product.category), field('Filial', product.branch), field('O‘lchov birligi', product.unit), field('Kirish narxi', money(product.price, product.currency)));
     // Desktop starts expanded; mobile keeps the history near the first screen.
     summary.querySelector('details').open = restoringPurchase ? restoringPurchase.expanded : innerWidth > 760;
-    detailContent.replaceChildren(summary, purchaseHistory(product));
+    detailContent.replaceChildren(summary, historyNavigation(mode), transactionHistory(product, mode));
   }
   const note = document.createElement('p');
   note.className = 'stage-note';
-  note.textContent = 'Sinov ma’lumotlari. Mahsulot va xarid tarixi jonli omborga bog‘lanmagan.';
+  note.textContent = 'Sinov ma’lumotlari. Mahsulot tarixi jonli omborga bog‘lanmagan.';
   detailContent.append(note);
   detailContent.classList.toggle('is-purchase-detail', Boolean(purchase));
   workspace.hidden = true;
   productPage.hidden = false;
-  document.title = `${purchase ? 'Kirim · ' : ''}${product.name} · Rizo Store`;
+  document.title = `${purchase ? `${config.detail} · ` : ''}${product.name} · Rizo Store`;
   window.scrollTo(0, restoringPurchase?.scroll || 0);
-  const returnLink = restoringPurchase && [...detailContent.querySelectorAll('[data-purchase]')].find(link => link.dataset.purchase === restoringPurchase.id && link.getClientRects().length);
+  const returnLink = restoringPurchase && [...detailContent.querySelectorAll('[data-purchase], [data-entry]')].find(link => (link.dataset.purchase || link.dataset.entry) === restoringPurchase.id && link.getClientRects().length);
   (returnLink || summary.querySelector('h1')).focus({ preventScroll: true });
 }
 
@@ -380,12 +480,15 @@ function navigate(view, stockStatus) {
 }
 function syncRoute() {
   returning = false;
+  if (historySheet.open) historySheet.close();
   const code = new URLSearchParams(location.hash.slice(1)).get('product');
   const product = products.find(item => item.barcode === code);
   if (product) {
-    const purchaseId = new URLSearchParams(location.hash.slice(1)).get('purchase');
-    const purchase = purchases.find(item => item.id === purchaseId && item.product === product.barcode);
-    showProduct(product, purchase || null); return;
+    const params = new URLSearchParams(location.hash.slice(1));
+    const mode = Object.hasOwn(historyModes, params.get('tab')) ? params.get('tab') : 'purchase';
+    const entryId = params.get('entry') || params.get('purchase');
+    const entry = historyModes[mode].rows.find(item => item.id === entryId && item.product === product.barcode);
+    showProduct(product, entry || null, mode); return;
   }
   if (code) history.replaceState(null, '', '#reports');
   const view = location.hash === '#reports' ? 'reports' : 'home';
@@ -417,7 +520,7 @@ function goBack() {
   returning = true;
   if (activePurchase) {
     if (history.state?.rizoPurchase) history.back();
-    else { history.replaceState(null, '', `#product=${activeProduct}`); syncRoute(); }
+    else { history.replaceState(null, '', `#product=${activeProduct}&tab=${activeHistoryMode}`); syncRoute(); }
   } else if (history.state?.rizoDetail) history.back();
   else {
     history.replaceState(null, '', `#${detailOrigin}`);
@@ -432,7 +535,7 @@ document.addEventListener('click', event => {
     navigate(route.dataset.route, route.dataset.stockStatus);
     return;
   }
-  const purchaseLink = event.target.closest('a[data-purchase]');
+  const purchaseLink = event.target.closest('a[data-purchase], a[data-entry]');
   if (purchaseLink) {
     event.preventDefault();
     history.pushState({rizoPurchase: true, rizoFrom: detailOrigin}, '', purchaseLink.getAttribute('href'));
@@ -444,6 +547,46 @@ document.addEventListener('click', event => {
   event.preventDefault();
   history.pushState({ rizoDetail: true, rizoFrom: activeView || 'reports' }, '', link.getAttribute('href'));
   syncRoute();
+});
+const historySheet = document.getElementById('history-mode-sheet');
+let historySheetOverflow = '';
+function switchHistory(mode) {
+  if (!Object.hasOwn(historyModes, mode) || !activeProduct) return;
+  const expanded = detailContent.querySelector('.product-metadata')?.open;
+  const position = window.scrollY;
+  history.replaceState(history.state, '', `#product=${activeProduct}&tab=${mode}`);
+  syncRoute();
+  const metadata = detailContent.querySelector('.product-metadata');
+  if (metadata) metadata.open = expanded;
+  window.scrollTo(0, position);
+  const target = innerWidth <= 760 ? document.getElementById('history-picker') : detailContent.querySelector(`[data-history-mode="${mode}"]`);
+  target?.focus({preventScroll:true});
+}
+document.addEventListener('click', event => {
+  const modeButton = event.target.closest('[data-history-mode]');
+  if (modeButton) {
+    if (historySheet.open) historySheet.close();
+    switchHistory(modeButton.dataset.historyMode);
+    return;
+  }
+  if (!event.target.closest('#history-picker')) return;
+  document.getElementById('history-mode-options').innerHTML = Object.entries(historyTitles).map(([mode, title]) => `<button class="report-choice" data-history-mode="${mode}" ${historyModes[mode] ? '' : 'disabled'} ${mode === activeHistoryMode ? 'aria-current="page"' : ''}><span>${title}</span><small>${mode === activeHistoryMode ? 'Tanlangan' : historyModes[mode] ? '' : 'Tayyorlanmoqda'}</small></button>`).join('');
+  historySheetOverflow = document.body.style.overflow;
+  document.body.style.overflow = 'hidden';
+  historySheet.showModal();
+  document.getElementById('history-picker').setAttribute('aria-expanded', 'true');
+});
+document.getElementById('history-mode-close').addEventListener('click', () => historySheet.close());
+historySheet.addEventListener('close', () => {
+  document.body.style.overflow = historySheetOverflow;
+  const picker = document.getElementById('history-picker');
+  picker?.setAttribute('aria-expanded', 'false');
+  if (picker?.getClientRects().length) picker.focus({preventScroll:true});
+});
+historySheet.addEventListener('click', event => {
+  if (event.target !== historySheet) return;
+  const rect = historySheet.getBoundingClientRect();
+  if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) historySheet.close();
 });
 detailBack.addEventListener('click', goBack);
 window.addEventListener('popstate', syncRoute);
