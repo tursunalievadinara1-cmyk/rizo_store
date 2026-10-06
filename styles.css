@@ -207,3 +207,16 @@
   .history-filter-count{position:absolute;top:-5px;right:-5px}
 }
 @media(max-width:360px){.history-date-fields{grid-template-columns:1fr}}
+
+/* Shared motion uses compositor properties and never delays navigation. */
+body{overflow-x:clip}
+a.product-link{display:inline-block}
+:where(button,a[href],summary,input,select,textarea,[role="button"],.filter-option,.search){transition:scale 100ms ease-out,filter 100ms ease-out,background-color 140ms ease-out,border-color 140ms ease-out}
+:where(button,a[href],summary,input,select,textarea,[role="button"],.filter-option):not(:disabled):not([aria-disabled="true"]):active{scale:.97;filter:brightness(.94)}
+.filter-option:has(input:active) input:active,.search input:active{scale:1;filter:none}
+.product-metadata[open] .detail-fields{animation:metadata-enter 180ms ease-out}
+@keyframes metadata-enter{from{opacity:.35;translate:0 -6px}to{opacity:1;translate:0 0}}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition:none!important;animation:none!important}
+  :where(button,a[href],summary,input,select,textarea,[role="button"],.filter-option):active{scale:1}
+}

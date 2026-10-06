@@ -1,4 +1,33 @@
 'use strict';
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+const motionAnimations = new Set();
+const elementMotion = new WeakMap();
+function animateUI(element, frames, duration = 220) {
+  if (!element || reducedMotion.matches || !element.animate) return;
+  elementMotion.get(element)?.cancel();
+  const animation = element.animate(frames, {duration, easing: 'cubic-bezier(.2,.75,.25,1)'});
+  elementMotion.set(element, animation);
+  motionAnimations.add(animation);
+  const cleanup = () => motionAnimations.delete(animation);
+  animation.addEventListener('finish', cleanup, {once:true});
+  animation.addEventListener('cancel', cleanup, {once:true});
+}
+function enterContent(element, direction = 1, distance = 24) {
+  animateUI(element, [
+    {opacity: .35, translate: `${direction * distance}px 0`},
+    {opacity: 1, translate: '0 0'},
+  ]);
+}
+reducedMotion.addEventListener('change', () => {
+  if (reducedMotion.matches) motionAnimations.forEach(animation => animation.cancel());
+});
+// Delegation also covers controls created when a history or filter is rendered.
+document.addEventListener('click', event => {
+  const control = event.target.closest('button, a[href], summary, input, select, textarea, [role="button"], .filter-option');
+  if (!control || control.matches(':disabled, [aria-disabled="true"]')) return;
+  const surface = control.closest('.filter-option, .search') || control;
+  animateUI(surface, [{scale: '.97', filter: 'brightness(.94)'}, {scale: '1', filter: 'brightness(1)'}], 160);
+}, {capture:true});
 // Isolated frontend fixture data. No staging or backend requests.
 const products = [
   {name:'LED chiroq 12W',barcode:'DEMO-001',category:'Yoritish',quantity:5,unit:'dona',currency:'UZS',price:8000,branch:'Namuna filial',status:'low'},
@@ -154,6 +183,7 @@ function showFilterFields(focusKey) {
     filterFields.append(button);
   });
   if (focusKey) filterFields.querySelector(`[data-field="${focusKey}"]`).focus({preventScroll:true});
+  if (filterSheet.open) enterContent(filterFields, -1, 12);
 }
 function showFilterChoices(key) {
   choosingFilter = key;
@@ -174,6 +204,7 @@ function showFilterChoices(key) {
     label.append(input, text); list.append(label);
   });
   list.querySelector('input:checked').focus({preventScroll:true});
+  enterContent(filterOptions, 1, 12);
 }
 filterTrigger.addEventListener('click', () => {
   draftFilters = {...filters}; showFilterFields();
@@ -530,6 +561,18 @@ function navigate(view, stockStatus) {
   syncRoute();
 }
 function syncRoute() {
+  const before = {view: activeView, product: activeProduct, entry: activePurchase, mode: activeHistoryMode};
+  applyRoute();
+  const changed = before.view !== activeView || before.product !== activeProduct || before.entry !== activePurchase || before.mode !== activeHistoryMode;
+  if (!changed) return;
+  // Cancel outgoing motion so fast navigation never leaves a stale effect.
+  motionAnimations.forEach(animation => animation.cancel());
+  const historyOnly = activeProduct && before.product === activeProduct && !before.entry && !activePurchase && before.mode !== activeHistoryMode;
+  const backwards = (before.entry && !activePurchase) || (before.product && !activeProduct) || (!before.product && before.view === 'reports' && activeView === 'home');
+  const target = activeProduct ? (historyOnly ? detailContent.querySelector('.purchase-history') : detailContent) : activeView === 'home' ? dashboard : reportsPage;
+  enterContent(target, backwards ? -1 : 1, historyOnly ? 12 : 24);
+}
+function applyRoute() {
   returning = false;
   if (historySheet.open) historySheet.close();
   if (historyFilterSheet.open) historyFilterSheet.close();
@@ -681,6 +724,7 @@ function showHistoryFilterFields(focusKey) {
   });
   historyFilterBody.append(dates);
   if (focusKey) historyFilterBody.querySelector(`[data-history-field="${focusKey}"]`)?.focus({preventScroll:true});
+  if (historyFilterSheet.open) enterContent(historyFilterBody, -1, 12);
 }
 function renderHistoryFilterChoices() {
   const list = document.getElementById('history-filter-option-list'); list.replaceChildren();
@@ -705,6 +749,7 @@ function showHistoryFilterChoices(key) {
   document.getElementById('history-filter-search-wrap').hidden = !['supplier', 'buyer'].includes(key);
   renderHistoryFilterChoices();
   document.querySelector('#history-filter-option-list input:checked')?.focus({preventScroll:true});
+  enterContent(historyFilterChoices, 1, 12);
 }
 historyFilterSearch.addEventListener('input', renderHistoryFilterChoices);
 document.getElementById('history-filter-back').addEventListener('click', () => showHistoryFilterFields(historyChoosing));
