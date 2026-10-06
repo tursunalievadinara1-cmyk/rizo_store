@@ -69,22 +69,22 @@ const grossHistory = [
 const historyTitles = {purchase: 'Sotib olish', sales: 'Sotish', returns: 'Qaytish', 'sales-return': 'Sotuv bo‘yicha qaytarish', gross: 'Yalpi daromad'};
 const historyModes = {
   purchase: {title: historyTitles.purchase, detail: 'Kirim tafsiloti', rows: purchases, fields: purchaseFields, amount: item => item.quantity * item.cost, amountLabel: 'Kirish summasi'},
-  gross: {title: historyTitles.gross, detail: 'Daromad tafsiloti', rows: grossHistory, fields: grossFields, amount: item => item.gross, amountLabel: 'Yalpi daromad', party: item => item.supplier, note: 'Yalpi daromad — barcha omborlar bo‘yicha',
+  gross: {title: historyTitles.gross, detail: 'Daromad tafsiloti', rows: grossHistory, fields: grossFields, amount: item => item.gross, amountLabel: 'Yalpi daromad', party: item => item.supplier,
     metrics: (product, item) => [['Miqdori', `${format(item.quantity)} ${product.unit}`], ['Sotish narxi', money(item.sale, item.currency)]],
     tags: item => `<span class="status ${item.gross < 0 ? 'zero' : 'ok'}">${item.source}</span>`,
-    totals: rows => [['Musbat qiymatlar', rows.reduce((sum, item) => sum + Math.max(item.gross, 0), 0)], ['Manfiy qiymatlar', rows.reduce((sum, item) => sum + Math.min(item.gross, 0), 0)], ['Yalpi daromad', rows.reduce((sum, item) => sum + item.gross, 0)]]},
+    totals: rows => [['Yalpi daromad', rows.reduce((sum, item) => sum + item.gross, 0)]]},
   'sales-return': {title: historyTitles['sales-return'], detail: 'Savdo qaytishi tafsiloti', rows: salesReturns, fields: saleReturnFields, amount: item => item.total, amountLabel: 'Qaytarish summasi', party: item => item.buyer,
     metrics: (product, item) => [['Qaytarildi', `${format(item.quantity)} ${product.unit}`], ['Qaytarilgan to‘lov', money(item.paid, item.currency)]],
     tags: item => `<span class="history-type">${item.type}</span><span class="status zero">Savdodan qaytish</span>`,
-    totals: rows => [['Qaytarish summasi', rows.reduce((sum, item) => sum + item.total, 0)], ['Qaytarilgan to‘lov', rows.reduce((sum, item) => sum + item.paid, 0)]]},
+    totals: () => []},
   returns: {title: historyTitles.returns, detail: 'Qaytish tafsiloti', rows: supplierReturns, fields: supplierReturnFields, amount: item => item.quantity * item.cost, amountLabel: 'Qaytarish summasi', party: item => item.supplier,
     metrics: (product, item) => [['Qaytarildi', `${format(item.quantity)} ${product.unit}`], ['Kirish narxi', money(item.cost, item.currency)]],
     tags: item => `<span class="history-reason">Sabab: ${item.reason}</span>`,
-    totals: rows => [['Qaytarish summasi', rows.reduce((sum, item) => sum + item.quantity * item.cost, 0)]]},
+    totals: () => []},
   sales: {title: historyTitles.sales, detail: 'Savdo tafsiloti', rows: salesHistory, fields: saleFields, amount: item => item.total, amountLabel: 'Jami to‘lov', party: item => item.buyer,
     metrics: (product, item) => [['Miqdori', `${format(item.quantity)} ${product.unit}`], ['To‘langan', money(item.paid, item.currency)]],
     tags: item => `<span class="history-type">${item.type}</span><span class="status ${item.paid < item.total ? 'low' : 'ok'}">${item.paid < item.total ? 'Qisman to‘langan' : 'To‘langan'}</span>`,
-    totals: rows => [['Jami to‘lov', rows.reduce((sum, item) => sum + item.total, 0)], ['To‘langan', rows.reduce((sum, item) => sum + item.paid, 0)], ['Qoldiq to‘lov', rows.reduce((sum, item) => sum + item.total - item.paid, 0)]]},
+    totals: rows => [['Umumiy hisob', rows.reduce((sum, item) => sum + item.total, 0)]]},
 };
 const dateLabel = value => value.split('-').reverse().join('.');
 const money = (value, currency) => `${format(value)} ${currency}`;
@@ -111,7 +111,12 @@ const search=document.getElementById('search');
 const stockDate = '2026-10-06';
 let stockTab='stock';
 const reportSearches={stock:'',reserved:''};
+const reportBarcodes={stock:'',reserved:''};
+const barcodeSearch=document.getElementById('barcode-search');
 const reportPages={stock:1,reserved:1};
+const reportSorts={stock:{key:'',direction:'desc'},reserved:{key:'',direction:'desc'}};
+const historySorts={};
+let sortContext='report';
 const expiryLabels = {dated:'Muddati kiritilgan',soon:'Yaqinda tugaydigan',expired:'Muddati o‘tgan'};
 products.forEach((p,i)=>Object.assign(p,{salePrice:p.price*1.2,supplier:i%2?'Ikkinchi namuna ta’minotchi':'Namuna ta’minotchi',warehouse:i%2?'Ikkinchi namuna ombor':'Namuna ombor',variant:i===2?'20 mm · oq':'—',expiry:i===1?'2026-09-30':i===2?'2026-10-20':'',batch:`NAM-PARTIYA-${i+1}`,received:i%2?'2026-09-24':'2026-10-05',minimum:[10,20,500,5,3,10][i]}));
 // Split fixture lines demonstrate grouping and negative balances without touching live stock.
@@ -122,54 +127,66 @@ let filters=emptyFilters(),draftFilters=emptyFilters();
 let stockPageNumber=1;
 const stockPageSize=6;
 const stockColumnDefs=[
-  ['name','Mahsulot nomlari',p=>p.name],['variant','Variatsiya',p=>p.variant],['barcode','Shtrix-kod',p=>p.barcode],['category','Turkum',p=>p.category],['quantity','Miqdori',p=>p.quantity],['currency','Valyuta',p=>p.currency],['unit','O‘lchov birligi',p=>p.unit],['expiry','Yaroqlilik muddati',p=>p.expiry?dateLabel(p.expiry):'—'],['expiryState','Muddat holati',p=>stockExpiry(p)||'—'],['price','Kirish narxi',p=>p.price],['salePrice','Sotish narxi',p=>p.salePrice],['costTotal','Yakuniy kirish qiymati',p=>p.quantity*p.price],['saleTotal','Sotish qiymati',p=>p.quantity*p.salePrice],['branch','Filial',p=>p.branch],['warehouse','Ombor',p=>p.warehouse],['supplier','Ta’minotchi',p=>p.supplier],['batch','Ishlab chiqarish raqami',p=>p.batch]
+  ['rowNumber','№',(_p,index)=>index+1],  ['name','Mahsulot nomlari',p=>p.name],['variant','Variatsiya',p=>p.variant],['barcode','Shtrix-kod',p=>p.barcode],['category','Turkum',p=>p.category],['quantity','Miqdori',p=>p.quantity],['currency','Valyuta',p=>p.currency],['unit','O‘lchov birligi',p=>p.unit],['expiry','Yaroqlilik muddati',p=>p.expiry?dateLabel(p.expiry):'—'],['expiryState','Muddat holati',p=>stockExpiry(p)||'—'],['price','Kirish narxi',p=>p.price],['salePrice','Sotish narxi',p=>p.salePrice],['costTotal','Yakuniy kirish narxi',p=>p.quantity*p.price],['saleTotal','Umumiy miqdor',p=>p.quantity*p.salePrice],['branch','Filial',p=>p.branch],['supplier','Ta’minotchi',p=>p.supplier],['batch','Ishlab chiqarish raqami',p=>p.batch]
 ];
 let stockColumns=stockColumnDefs.map(([key])=>key),stockColumnDraft=[];
-try{const saved=JSON.parse(localStorage.getItem('rizo-stock-columns'));if(Array.isArray(saved)&&saved.includes('name'))stockColumns=[...new Set(saved.filter(key=>stockColumnDefs.some(([id])=>id===key)))];}catch{}
+try{const saved=JSON.parse(localStorage.getItem('rizo-stock-columns-v2'));if(Array.isArray(saved)&&saved.includes('name'))stockColumns=[...new Set(saved.filter(key=>stockColumnDefs.some(([id])=>id===key)))];}catch{}
 function stockExpiry(p){if(!p.expiry)return '';if(p.expiry<stockDate)return expiryLabels.expired;return p.expiry<='2026-11-05'?expiryLabels.soon:'Muddati bor';}
 function stockStatus(p){return p.quantity<0?'negative':p.quantity===0?'zero':p.quantity<=p.minimum?'low':'ok';}
 function filteredStockRows(){
   const query=search.value.trim().toLocaleLowerCase('uz');
-  let rows=stockLots.filter(p=>`${p.name} ${p.barcode}`.toLocaleLowerCase('uz').includes(query)&&['branch','supplier','warehouse','unit'].every(key=>!filters[key]||p[key]===filters[key])&&(!filters.currency||p.currency===filters.currency)&&(!filters.from||p.received>=filters.from)&&(filters.negative||p.quantity>=0)&&(!filters.expiryState||(filters.expiryState==='dated'?!!p.expiry:stockExpiry(p)===expiryLabels[filters.expiryState])));
+  let rows=stockLots.filter(p=>`${p.name} ${p.barcode}`.toLocaleLowerCase('uz').includes(query)&&(!barcodeSearch.value.trim()||p.barcode.toLocaleLowerCase('uz').includes(barcodeSearch.value.trim().toLocaleLowerCase('uz')))&&['branch','supplier','warehouse','unit'].every(key=>!filters[key]||p[key]===filters[key])&&(filters.convert||!filters.currency||p.currency===filters.currency)&&(!filters.from||p.received>=filters.from)&&(filters.negative||p.quantity>=0)&&(!filters.expiryState||(filters.expiryState==='dated'?!!p.expiry:stockExpiry(p)===expiryLabels[filters.expiryState])));
   if(filters.group){const grouped=new Map();rows.forEach(p=>{const key=JSON.stringify([p.barcode,p.variant,p.currency,p.price,p.salePrice,p.branch,p.warehouse,p.supplier,p.expiry,p.batch]);if(grouped.has(key))grouped.get(key).quantity+=p.quantity;else grouped.set(key,{...p,id:`group-${p.id}`});});rows=[...grouped.values()];}
   rows=rows.filter(p=>(!filters.status||stockStatus(p)===filters.status)&&(!filters.minimum||p.quantity<=p.minimum)&&(filters.min===''||p.quantity>=Number(filters.min))&&(filters.max===''||p.quantity<=Number(filters.max)));
-  if(filters.convert){const rate=Number(filters.rate);rows=rows.map(p=>{const factor=p.currency===filters.target?1:p.currency==='USD'?rate:1/rate;return {...p,price:p.price*factor,salePrice:p.salePrice*factor,currency:filters.target};});}
-  return rows;
+  if(filters.convert){const target=filters.currency||'UZS',rate=12500;rows=rows.map(p=>{const factor=p.currency===target?1:p.currency==='USD'?rate:1/rate;return {...p,price:p.price*factor,salePrice:p.salePrice*factor,currency:target};});}
+  return sortReportRows(rows,stockColumnDefs,reportSorts.stock);
+}
+function sortReportRows(rows,definitions,selection,history=false){
+  if(!selection.key||['rowNumber','№'].includes(selection.key))return rows;
+  const definition=definitions.find(([key])=>key===selection.key);if(!definition)return rows;
+  const numericHistory=['Kirish miqdori','Qoldiq miqdori','Miqdori','Kirish narxi','Sotish narxi','Sotib olish narxi','Yakuniy kirish narxi','Yakuniy narx','To‘langan','Umumiy to‘lov miqdori','Yalpi daromad'];
+  const value=row=>{if(['date','Yaratilgan sana'].includes(selection.key))return `${row.date}T${row.time}`;if(selection.key==='synced')return row.synced;if(selection.key==='expiry')return row.expiry;const raw=definition[2](row);return history&&numericHistory.includes(selection.key)?Number(String(raw).replace(/[^0-9,.-]/g,'').replace(',','.')):raw;};
+  return [...rows].sort((left,right)=>{const a=value(left),b=value(right),order=typeof a==='number'&&typeof b==='number'?a-b:String(a??'').localeCompare(String(b??''),'uz',{numeric:true});return selection.direction==='asc'?order:-order;});
+}
+function sortHeader(key,label,context,interactive=true){
+  if(!interactive||['rowNumber','№'].includes(key))return `<th scope="col">${label}</th>`;
+  const selected=context==='report'?reportSorts[stockTab]:historySorts[activeHistoryMode];const current=selected?.key===key;
+  return `<th scope="col" aria-sort="${current?(selected.direction==='asc'?'ascending':'descending'):'none'}"><button class="table-sort" data-sort-key="${key}" data-sort-context="${context}" aria-label="${label} bo‘yicha saralash">${label}<span aria-hidden="true">${current?(selected.direction==='asc'?'↑':'↓'):'↕'}</span></button></th>`;
 }
 function activeStockFilters(){const defaults=emptyFilters();return Object.entries(filters).filter(([key,value])=>!['target','rate'].includes(key)&&value!==defaults[key]);}
 function selectedStockColumns(){return stockColumns.map(key=>stockColumnDefs.find(([id])=>id===key));}
-function stockTableMarkup(rows,links=true){const columns=selectedStockColumns();return `<table><thead><tr><th scope="col">№</th>${columns.map(([,label])=>`<th scope="col">${label}</th>`).join('')}</tr></thead><tbody>${rows.map((p,i)=>`<tr><td>${links?(stockPageNumber-1)*stockPageSize+i+1:i+1}</td>${columns.map(([key,,value])=>{const v=value(p);return `<td class="${typeof v==='number'?'numeric':''}">${key==='name'&&links?`<a class="product-link" href="#product=${p.barcode}" data-product="${p.barcode}">${v}</a>`:typeof v==='number'?format(v):v}</td>`;}).join('')}</tr>`).join('')}</tbody></table>`;}
+function stockTableMarkup(rows,links=true){const columns=selectedStockColumns();return `<table><thead><tr>${columns.map(([key,label])=>sortHeader(key,label,'report',links)).join('')}</tr></thead><tbody>${rows.map((p,i)=>`<tr>${columns.map(([key,,value])=>{const v=value(p,links?(stockPageNumber-1)*stockPageSize+i:i);return `<td class="${typeof v==='number'?'numeric':''}">${key==='name'&&links?`<a class="product-link" href="#product=${p.barcode}${!filters.group?`&lot=${p.id}`:''}" data-product="${p.barcode}">${v}</a>`:typeof v==='number'?format(v):v}</td>`;}).join('')}</tr>`).join('')}</tbody></table>`;}
 function stockTotalsMarkup(rows){return [...new Set(rows.map(p=>p.currency))].map(currency=>{const list=rows.filter(p=>p.currency===currency);return `<section class="purchase-total"><h3>Jami <span class="currency">${currency}</span></h3><dl><div><dt>Kirish qiymati</dt><dd>${format(list.reduce((n,p)=>n+p.quantity*p.price,0))}</dd></div><div><dt>Sotish qiymati</dt><dd>${format(list.reduce((n,p)=>n+p.quantity*p.salePrice,0))}</dd></div></dl></section>`;}).join('');}
-function render(){if(stockTab==='reserved'){renderReserved();return;}renderStock();}
+function render(){document.querySelector('.barcode-search summary').textContent=barcodeSearch.value.trim()?`Shtrix-kod · ${barcodeSearch.value.trim()}`:'Shtrix-kod bo‘yicha qidirish';if(stockTab==='reserved'){renderReserved();return;}renderStock();}
 function renderStock(){
   document.querySelector('#empty h2').textContent='Mahsulot topilmadi';
   const rows=filteredStockRows();const pages=Math.max(1,Math.ceil(rows.length/stockPageSize));stockPageNumber=Math.min(Math.max(stockPageNumber,1),pages);const visible=rows.slice((stockPageNumber-1)*stockPageSize,stockPageNumber*stockPageSize);
   document.getElementById('result-count').textContent=`${rows.length} ta ${filters.group?'mahsulot':'qator'}`;
   document.querySelector('#main .table-wrap').innerHTML=stockTableMarkup(visible);
-  document.getElementById('cards').innerHTML=visible.map(p=>`<article class="stock-card"><div class="card-head"><h2><a class="product-link" href="#product=${p.barcode}" data-product="${p.barcode}">${p.name}</a></h2><span class="currency">${p.currency}</span></div><dl class="card-values"><div><dt>Qoldiq</dt><dd>${format(p.quantity)} <span class="unit">${p.unit}</span></dd></div><div><dt>Kirish qiymati</dt><dd>${format(p.quantity*p.price)}</dd></div></dl><div class="stock-card-flags">${stockStatus(p)!=='ok'?status({...p,status:stockStatus(p)}):''}${stockExpiry(p)?`<span class="status ${p.expiry<stockDate?'zero':'low'}">${stockExpiry(p)}</span>`:''}</div></article>`).join('');
+  document.getElementById('cards').innerHTML=visible.map(p=>`<article class="stock-card"><div class="card-head"><h2><a class="product-link" href="#product=${p.barcode}${!filters.group?`&lot=${p.id}`:''}" data-product="${p.barcode}">${p.name}</a></h2><span class="currency">${p.currency}</span></div><dl class="card-values"><div><dt>Qoldiq</dt><dd>${format(p.quantity)} <span class="unit">${p.unit}</span></dd></div><div><dt>Kirish qiymati</dt><dd>${format(p.quantity*p.price)}</dd></div></dl><div class="stock-card-flags">${stockStatus(p)!=='ok'?status({...p,status:stockStatus(p)}):''}${stockExpiry(p)?`<span class="status ${p.expiry<stockDate?'zero':'low'}">${stockExpiry(p)}</span>`:''}</div></article>`).join('');
   document.getElementById('empty').hidden=!!rows.length;document.querySelector('#main .table-wrap').hidden=!rows.length;document.getElementById('cards').hidden=!rows.length;
-  const note=document.getElementById('stock-context-note');note.hidden=!filters.convert&&filters.group;note.textContent=[filters.convert?`Namuna kursi: 1 USD = ${format(Number(filters.rate))} UZS. Hisobot ${filters.target} da; mahsulot tafsilotida asl valyuta ko‘rsatiladi.`:'',!filters.group?'Kirimlar alohida ko‘rsatilgan. Tafsilotda mahsulotning jami qoldig‘i ochiladi.':''].filter(Boolean).join(' ');
+  const note=document.getElementById('stock-context-note');note.hidden=!filters.convert&&filters.group;note.textContent=[filters.convert?`Namuna kursi: 1 USD = ${format(Number(filters.rate))} UZS. Hisobot ${(filters.currency||'UZS')} da; mahsulot tafsilotida asl valyuta ko‘rsatiladi.`:'',!filters.group?'Qoldiq qatorlari alohida ko‘rsatilgan.':''].filter(Boolean).join(' ');
   document.getElementById('stock-totals').innerHTML=stockTotalsMarkup(rows);
   const pager=document.getElementById('stock-pagination');pager.hidden=pages<=1;pager.innerHTML=`<button class="outline-button" data-stock-page="${stockPageNumber-1}" ${stockPageNumber===1?'disabled':''} aria-label="Oldingi qoldiq sahifasi">‹</button><span>${stockPageNumber} / ${pages}</span><button class="outline-button" data-stock-page="${stockPageNumber+1}" ${stockPageNumber===pages?'disabled':''} aria-label="Keyingi qoldiq sahifasi">›</button>`;
   renderFilterChips();document.getElementById('clear-search').textContent='Qidiruv va filtrlarni tozalash';
 }
-function resetStockPage(){stockPageNumber=1;reportPages[stockTab]=1;reportSearches[stockTab]=search.value;render();}
+function resetStockPage(){stockPageNumber=1;reportPages[stockTab]=1;reportSearches[stockTab]=search.value;reportBarcodes[stockTab]=barcodeSearch.value;render();}
 search.addEventListener('input',resetStockPage);
-document.getElementById('clear-search').addEventListener('click',()=>{search.value='';if(stockTab==='reserved')reservedFilters=emptyReservedFilters();else filters=emptyFilters();resetStockPage();search.focus();});
+barcodeSearch.addEventListener('input',resetStockPage);
+document.getElementById('clear-search').addEventListener('click',()=>{search.value='';barcodeSearch.value='';if(stockTab==='reserved')reservedFilters=emptyReservedFilters();else filters=emptyFilters();resetStockPage();search.focus();});
 function closeDrawers(){document.querySelectorAll('.drawer[open]').forEach(dialog=>dialog.close())}
 document.querySelectorAll('[data-open]').forEach(button=>button.addEventListener('click',()=>{const dialog=document.getElementById(button.dataset.open);dialog.showModal();button.setAttribute('aria-expanded','true');document.body.style.overflow='hidden';}));
 document.querySelectorAll('.drawer').forEach(dialog=>{dialog.querySelector('[data-close]').addEventListener('click',()=>dialog.close());dialog.addEventListener('close',()=>{document.body.style.overflow='';document.querySelectorAll(`[data-open="${dialog.id}"]`).forEach(button=>button.setAttribute('aria-expanded','false'));});dialog.addEventListener('click',event=>{if(event.target!==dialog)return;const rect=dialog.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)dialog.close();});});
 document.querySelector('[data-remainder]').addEventListener('click',()=>navigate('reports'));
 const filterSheet=document.getElementById('filter-sheet'),filterTrigger=document.getElementById('filter-trigger'),filterFields=document.getElementById('filter-fields'),filterOptions=document.getElementById('filter-options'),filterChoiceBack=document.getElementById('filter-choice-back'),filterFooter=document.getElementById('filter-footer'),stockOptionSearch=document.getElementById('stock-option-search');
 let choosingFilter=null,previousBodyOverflow='';
-function filterValue(key,value){if(key==='convert')return `1 USD = ${format(Number(filters.rate))} UZS → ${filters.target}`;if(typeof value==='boolean')return value?'Yoqilgan':'O‘chirilgan';if(key==='from')return value?dateLabel(value):'Barchasi';return value?(key==='status'?statusLabels[value]:key==='expiryState'?expiryLabels[value]:value):'Barchasi';}
+function filterValue(key,value){if(key==='convert')return `1 USD = ${format(Number(filters.rate))} UZS → ${(filters.currency||'UZS')}`;if(typeof value==='boolean')return value?'Yoqilgan':'O‘chirilgan';if(key==='from')return value?dateLabel(value):'Barchasi';return value?(key==='status'?statusLabels[value]:key==='expiryState'?expiryLabels[value]:value):'Barchasi';}
 function renderFilterChips(){const chips=document.getElementById('filter-chips');chips.replaceChildren();const active=activeStockFilters();const badge=document.getElementById('filter-count');badge.hidden=!active.length;badge.textContent=active.length;filterTrigger.setAttribute('aria-label',active.length?`Filtr, ${active.length} ta faol`:'Filtr');active.forEach(([key,value])=>{const button=document.createElement('button');button.className='filter-chip';const label=`${filterLabels[key]}: ${filterValue(key,value)}`;button.textContent=`${label} ×`;button.setAttribute('aria-label',`${label} filtrini olib tashlash`);button.addEventListener('click',()=>{filters[key]=emptyFilters()[key];resetStockPage();filterTrigger.focus({preventScroll:true});});chips.append(button);});}
 function filterInput(container,key,label,type='number'){const wrapper=document.createElement('label');const title=document.createElement('span');title.textContent=label;const input=document.createElement('input');input.type=type;input.id=`stock-filter-${key}`;input.value=draftFilters[key];if(type==='number')input.step='any';input.addEventListener('input',()=>{draftFilters[key]=input.value;document.getElementById('stock-filter-error').textContent='';});wrapper.append(title,input);container.append(wrapper);}
 function showFilterFields(focusKey){choosingFilter=null;document.getElementById('filter-title').textContent='Qoldiq filtri';filterFields.hidden=false;filterOptions.hidden=true;filterChoiceBack.hidden=true;filterFooter.hidden=false;document.getElementById('stock-filter-error').textContent='';filterFields.replaceChildren();
-  ['branch','supplier','warehouse','unit','currency','status','expiryState'].forEach(key=>{const button=document.createElement('button');button.className='filter-field';button.dataset.field=key;button.innerHTML=`<span class="filter-label">${filterLabels[key]}</span><strong>${filterValue(key,draftFilters[key])}</strong><span class="field-arrow" aria-hidden="true">›</span>`;button.addEventListener('click',()=>showFilterChoices(key));filterFields.append(button);});
+  ['branch','supplier','warehouse','unit','currency','expiryState'].forEach(key=>{const button=document.createElement('button');button.className='filter-field';button.dataset.field=key;button.innerHTML=`<span class="filter-label">${filterLabels[key]}</span><strong>${filterValue(key,draftFilters[key])}</strong><span class="field-arrow" aria-hidden="true">›</span>`;button.addEventListener('click',()=>showFilterChoices(key));filterFields.append(button);});
   const inputs=document.createElement('div');inputs.className='history-date-fields';filterInput(inputs,'from','Sanadan boshlab','date');filterInput(inputs,'min','Miqdor dan');filterInput(inputs,'max','Miqdor gacha');filterFields.append(inputs);
-  [['negative','Salbiy qoldiqni ham ko‘rsatish'],['group','Bir xil kirimlarni guruhlash'],['minimum','Minimal qoldiqdan kam yoki teng'],['convert','Valyutani konvertatsiya qilish']].forEach(([key,title])=>{const label=document.createElement('label');label.className='filter-option stock-toggle';const input=document.createElement('input');input.type='checkbox';input.checked=draftFilters[key];input.addEventListener('change',()=>{draftFilters[key]=input.checked;document.getElementById('stock-conversion').hidden=!draftFilters.convert;});const name=document.createElement('span');name.textContent=title;label.append(input,name);filterFields.append(label);});
-  const conversion=document.createElement('div');conversion.id='stock-conversion';conversion.className='stock-conversion';conversion.hidden=!draftFilters.convert;conversion.innerHTML='<p class="choice-note">Sinov kursi. Jonli valyuta kursi emas.</p>';const fields=document.createElement('div');fields.className='history-date-fields';filterInput(fields,'rate','1 USD uchun UZS');const target=document.createElement('button');target.className='filter-field';target.dataset.field='target';target.innerHTML=`<span class="filter-label">Natija valyutasi</span><strong>${draftFilters.target}</strong><span class="field-arrow" aria-hidden="true">›</span>`;target.addEventListener('click',()=>showFilterChoices('target'));fields.append(target);conversion.append(fields);filterFields.append(conversion);
+  [['negative','Salbiy qoldiqni ham ko‘rsatish'],['group','Bir xil kirimlarni guruhlash'],['minimum','Minimal qoldiqdan kam yoki teng'],['convert','Valyutani konvertatsiya qilish']].forEach(([key,title])=>{const label=document.createElement('label');label.className='filter-option stock-toggle';const input=document.createElement('input');input.type='checkbox';input.checked=draftFilters[key];input.addEventListener('change',()=>{draftFilters[key]=input.checked;});const name=document.createElement('span');name.textContent=title;label.append(input,name);filterFields.append(label);});
   if(focusKey)filterFields.querySelector(`[data-field="${focusKey}"]`)?.focus({preventScroll:true});if(filterSheet.open)enterContent(filterFields,-1,12);
 }
 function renderStockChoices(){const list=document.getElementById('filter-option-list');list.replaceChildren();const key=choosingFilter;const source=key==='target'?['UZS','USD']:key==='status'?Object.keys(statusLabels):key==='expiryState'?Object.keys(expiryLabels):[...new Set(stockLots.map(p=>p[key]))];const query=stockOptionSearch.value.trim().toLocaleLowerCase('uz');const values=(key==='target'?source:['',...source]).filter(v=>filterValue(key,v).toLocaleLowerCase('uz').includes(query));values.forEach(value=>{const label=document.createElement('label');label.className='filter-option';const input=document.createElement('input');input.type='radio';input.name='filter-choice';input.value=value;input.checked=draftFilters[key]===value;const text=document.createElement('span');text.textContent=filterValue(key,value);input.addEventListener('click',()=>{draftFilters[key]=value;showFilterFields(key);});label.append(input,text);list.append(label);});document.getElementById('stock-no-options').hidden=!!values.length;}
@@ -183,26 +200,37 @@ render();
 
 // Report actions only operate on the local, filtered fixture rows.
 const stockColumnsSheet=document.getElementById('stock-columns-sheet'),stockPrintPreview=document.getElementById('stock-print-preview');
-let stockDialogOverflow='';
+let stockDialogOverflow='',columnContext='report';
+const historyColumnProfiles={};
+try{Object.assign(historyColumnProfiles,JSON.parse(localStorage.getItem('rizo-history-columns'))||{});}catch{}
 function reportActionData(){if(stockTab==='reserved')return {title:'Zaxiralangan mahsulotlar',rows:filteredReservedRows(),columns:reservedColumns.map(key=>reservedColumnDefs.find(([id])=>id===key)),table:reservedTableMarkup,totals:reservedTotalsMarkup};return {title:'Qoldiq',rows:filteredStockRows(),columns:selectedStockColumns(),table:stockTableMarkup,totals:stockTotalsMarkup};}
 function openStockDialog(dialog){stockDialogOverflow=document.body.style.overflow;document.body.style.overflow='hidden';dialog.showModal();}
 [stockColumnsSheet,stockPrintPreview].forEach(dialog=>{dialog.querySelector('[data-close-stock-dialog]').addEventListener('click',()=>dialog.close());dialog.addEventListener('close',()=>{document.body.style.overflow=stockDialogOverflow;});dialog.addEventListener('click',event=>{if(event.target!==dialog)return;const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close();});});
-function currentColumnDefs(){return stockTab==='reserved'?reservedColumnDefs:stockColumnDefs;}
-function currentColumns(){return stockTab==='reserved'?reservedColumns:stockColumns;}
-function renderStockColumnChoices(){const list=document.getElementById('stock-columns-list');list.replaceChildren();stockColumnDraft.forEach((item,index)=>{const line=document.createElement('div');line.className='column-choice';const label=document.createElement('label');const input=document.createElement('input');input.type='checkbox';input.checked=item.visible;input.disabled=item.key==='name';input.addEventListener('change',()=>item.visible=input.checked);const name=document.createElement('span');name.textContent=currentColumnDefs().find(([key])=>key===item.key)[1];label.append(input,name);line.append(label);[['↑',-1,'Yuqoriga'],['↓',1,'Pastga']].forEach(([symbol,offset,title])=>{const button=document.createElement('button');button.className='icon-button';button.textContent=symbol;button.setAttribute('aria-label',`${name.textContent}: ${title}`);button.disabled=index+offset<0||index+offset>=stockColumnDraft.length;button.addEventListener('click',()=>{[stockColumnDraft[index],stockColumnDraft[index+offset]]=[stockColumnDraft[index+offset],stockColumnDraft[index]];renderStockColumnChoices();list.children[index+offset]?.querySelector('input')?.focus({preventScroll:true});});line.append(button);});list.append(line);});}
+function currentColumnDefs(){if(columnContext==='history')return historyColumnDefinitions(activeHistoryMode);return stockTab==='reserved'?reservedColumnDefs:stockColumnDefs;}
+function currentColumns(){if(columnContext==='history')return selectedHistoryColumns(activeHistoryMode);return stockTab==='reserved'?reservedColumns:stockColumns;}
+function renderStockColumnChoices(){const list=document.getElementById('stock-columns-list');list.replaceChildren();stockColumnDraft.forEach((item,index)=>{const line=document.createElement('div');line.className='column-choice';const label=document.createElement('label');const input=document.createElement('input');input.type='checkbox';input.checked=item.visible;input.disabled=item.key==='name'||item.key==='Mahsulot nomi';input.addEventListener('change',()=>item.visible=input.checked);const name=document.createElement('span');name.textContent=currentColumnDefs().find(([key])=>key===item.key)[1];label.append(input,name);line.append(label);[['↑',-1,'Yuqoriga'],['↓',1,'Pastga']].forEach(([symbol,offset,title])=>{const button=document.createElement('button');button.className='icon-button';button.textContent=symbol;button.setAttribute('aria-label',`${name.textContent}: ${title}`);button.disabled=index+offset<0||index+offset>=stockColumnDraft.length;button.addEventListener('click',()=>{[stockColumnDraft[index],stockColumnDraft[index+offset]]=[stockColumnDraft[index+offset],stockColumnDraft[index]];renderStockColumnChoices();list.children[index+offset]?.querySelector('input')?.focus({preventScroll:true});});line.append(button);});list.append(line);});}
 document.getElementById('stock-columns-reset').addEventListener('click',()=>{stockColumnDraft=currentColumnDefs().map(([key])=>({key,visible:true}));renderStockColumnChoices();});
-document.getElementById('stock-columns-apply').addEventListener('click',()=>{const selected=stockColumnDraft.filter(c=>c.visible).map(c=>c.key);if(stockTab==='reserved')reservedColumns=selected;else stockColumns=selected;try{localStorage.setItem(stockTab==='reserved'?'rizo-reserved-columns':'rizo-stock-columns',JSON.stringify(selected));}catch{}render();stockColumnsSheet.close();});
+document.getElementById('stock-columns-apply').addEventListener('click',()=>{const selected=stockColumnDraft.filter(c=>c.visible).map(c=>c.key);if(columnContext==='history'){historyColumnProfiles[activeHistoryMode]=selected;try{localStorage.setItem('rizo-history-columns',JSON.stringify(historyColumnProfiles));}catch{}refreshHistory();stockColumnsSheet.close();return;}if(stockTab==='reserved')reservedColumns=selected;else stockColumns=selected;try{localStorage.setItem(stockTab==='reserved'?'rizo-reserved-columns-v2':'rizo-stock-columns-v2',JSON.stringify(selected));}catch{}render();stockColumnsSheet.close();});
 function csvCell(value){if(typeof value==='number')return String(value);let text=String(value??'');if(/^[\s]*[=+@-]/.test(text))text=`'${text}`;return `"${text.replaceAll('"','""')}"`;}
-function reportCSV(data){return '\uFEFF'+[data.columns.map(([,label])=>csvCell(label)).join(','),...data.rows.map(row=>data.columns.map(([, ,value])=>csvCell(value(row))).join(','))].join('\r\n');}
+function reportCSV(data){return '\uFEFF'+[data.columns.map(([,label])=>csvCell(label)).join(','),...data.rows.map((row,index)=>data.columns.map(([, ,value])=>csvCell(value(row,index))).join(','))].join('\r\n');}
 function performStockAction(action){
+  if(action==='sort'){openSortSheet('report');return;}
   if(action==='refresh'){render();document.getElementById('report-announcement').textContent='Sinov hisoboti yangilandi.';return;}
-  if(action==='columns'){stockColumnDraft=[...currentColumns(),...currentColumnDefs().map(([key])=>key).filter(key=>!currentColumns().includes(key))].map(key=>({key,visible:currentColumns().includes(key)}));renderStockColumnChoices();openStockDialog(stockColumnsSheet);return;}
+  if(action==='columns'){columnContext='report';document.querySelector('#stock-columns-sheet .choice-note').textContent=stockTab==='stock'?'Desktop jadvali, eksport va chop etish uchun. Mahsulot nomi doim ko‘rinadi.':'Desktop jadvali va eksport uchun. Mahsulot nomi doim ko‘rinadi.';stockColumnDraft=[...currentColumns(),...currentColumnDefs().map(([key])=>key).filter(key=>!currentColumns().includes(key))].map(key=>({key,visible:currentColumns().includes(key)}));renderStockColumnChoices();openStockDialog(stockColumnsSheet);return;}
   const data=reportActionData();
   if(action==='export'){const url=URL.createObjectURL(new Blob([reportCSV(data)],{type:'text/csv;charset=utf-8;'}));const link=document.createElement('a');link.href=url;link.download=`rizo-${data.title==='Qoldiq'?'qoldiq':'zaxira'}-${stockDate}.csv`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);document.getElementById('report-announcement').textContent=`${data.rows.length} ta qator CSV faylga chiqarildi.`;return;}
-  if(action==='print'){const html=`<h1>${data.title}</h1><p>Sinov ma’lumotlari · ${dateLabel(stockDate)} · ${data.rows.length} ta qator</p>${stockTab==='stock'&&filters.convert?`<p>Namuna kursi: 1 USD = ${format(Number(filters.rate))} UZS · ${filters.target}</p>`:''}${data.rows.length?data.table(data.rows,false):'<p>Ma’lumot topilmadi.</p>'}<div class="purchase-totals">${data.totals(data.rows)}</div>`;document.getElementById('stock-print-content').innerHTML=html;document.getElementById('print-area').innerHTML=html;openStockDialog(stockPrintPreview);}
+  if(action==='print'&&stockTab==='stock'){const html=`<h1>${data.title}</h1><p>Sinov ma’lumotlari · ${dateLabel(stockDate)} · ${data.rows.length} ta qator</p>${stockTab==='stock'&&filters.convert?`<p>Namuna kursi: 1 USD = ${format(Number(filters.rate))} UZS · ${(filters.currency||'UZS')}</p>`:''}${data.rows.length?data.table(data.rows,false):'<p>Ma’lumot topilmadi.</p>'}<div class="purchase-totals">${data.totals(data.rows)}</div>`;document.getElementById('stock-print-content').innerHTML=html;document.getElementById('print-area').innerHTML=html;openStockDialog(stockPrintPreview);}
 }
 document.getElementById('stock-print-confirm').addEventListener('click',()=>window.print());
 document.addEventListener('click',event=>{const action=event.target.closest('[data-stock-action]');if(action){performStockAction(action.dataset.stockAction);return;}const page=event.target.closest('[data-stock-page]');if(page){stockPageNumber=Number(page.dataset.stockPage);render();document.getElementById('reports-title').focus({preventScroll:true});window.scrollTo(0,0);}});
+
+const sortSheet=document.getElementById('sort-sheet');let sortOverflow='';
+function currentSort(){return sortContext==='history'?(historySorts[activeHistoryMode]||{key:'',direction:'desc'}):reportSorts[stockTab];}
+function setSort(key,direction){const selected={key,direction};if(sortContext==='history'){historySorts[activeHistoryMode]=selected;refreshHistory();}else{reportSorts[stockTab]=selected;resetStockPage();}}
+function renderSortOptions(){const selected=currentSort(),defs=sortContext==='history'?historyColumnDefinitions(activeHistoryMode):(stockTab==='reserved'?reservedColumnDefs:stockColumnDefs);const list=document.getElementById('sort-options');list.replaceChildren();[['','Asl tartib'],...defs.filter(([key])=>!['rowNumber','№'].includes(key))].forEach(([key,label])=>{const button=document.createElement('button');button.className='report-choice';button.textContent=label;button.setAttribute('aria-pressed',String(selected.key===key));if(selected.key===key)button.insertAdjacentHTML('beforeend','<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>');button.addEventListener('click',()=>{setSort(key,currentSort().direction);sortSheet.close();});list.append(button);});document.querySelectorAll('[data-sort-direction]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.sortDirection===selected.direction)));}
+function openSortSheet(context){sortContext=context;renderSortOptions();sortOverflow=document.body.style.overflow;document.body.style.overflow='hidden';sortSheet.showModal();}
+document.getElementById('sort-close').addEventListener('click',()=>sortSheet.close());sortSheet.addEventListener('close',()=>{document.body.style.overflow=sortOverflow;});sortSheet.addEventListener('click',event=>{if(event.target!==sortSheet)return;const r=sortSheet.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)sortSheet.close();});
+document.addEventListener('click',event=>{const open=event.target.closest('[data-sort-open]');if(open){openSortSheet(open.dataset.sortOpen);return;}const direction=event.target.closest('[data-sort-direction]');if(direction){setSort(currentSort().key,direction.dataset.sortDirection);renderSortOptions();return;}const header=event.target.closest('[data-sort-key]');if(header){sortContext=header.dataset.sortContext;const selected=currentSort();setSort(header.dataset.sortKey,selected.key===header.dataset.sortKey&&selected.direction==='desc'?'asc':'desc');}});
 
 // Desktop and mobile share the same report destinations.
 const reportSections = [['Qoldiqlar', 'reports'], ['Sotib olish', 'invoices'], ['Mahsulot bo‘yicha sotish'], ['Qaytish'], ['Yalpi daromad'], ['Keshbek'], ['Kassa']];
@@ -225,7 +253,7 @@ document.querySelectorAll('[data-choice-sheet]').forEach(trigger => {
       ? 'Qoldiqlar va hisob-fakturalar faol.' : ['reports','reserved'].includes(activeView) ? 'Filtrga mos barcha qatorlar uchun.' : 'Eksport va chop etish hali ulanmagan.';
     const list = document.getElementById('report-choices');
     list.replaceChildren();
-    (isReports ? reportSections : ['reports','reserved'].includes(activeView) ? [['Eksport · CSV','export'], ['Chop etish','print'], ['Jadval ustunlari','columns'], ['Yangilash','refresh']] : [['Eksport'], ['Chop etish']]).forEach(([label, route]) => {
+    (isReports ? reportSections : ['reports','reserved'].includes(activeView) ? [['Saralash','sort'], ['Eksport · CSV','export'], ...(activeView==='reports'?[['Chop etish','print']]:[]), ['Jadval ustunlari','columns'], ['Yangilash','refresh']] : [['Eksport'], ['Chop etish']]).forEach(([label, route]) => {
       const button = document.createElement('button'); button.className = 'report-choice';
       const name = document.createElement('span'); name.textContent = label; button.append(name);
       if (route) {
@@ -269,6 +297,7 @@ let activeInvoice = null;
 let activeReservation = null;
 let activeView = null;
 let activeProduct = null;
+let activeStockLot = null;
 let activePurchase = null;
 let activeHistoryMode = 'purchase';
 let purchaseReturn = null;
@@ -321,8 +350,20 @@ function saleFields(product, item) {
     ['Yaratilgan sana', `${dateLabel(item.date)} · ${item.time}`],
   ];
 }
+// Column sets match the visible source tables; full mobile details retain their fields.
+function sourceHistoryFields(product,item,mode){
+  return historyModes[mode].fields(product,item).filter(([label])=>!['Xaridor','Turi'].includes(label)&&!(mode==='returns'&&label==='Qaytarish summasi')).map(([label,value])=>[mode==='sales-return'?(label==='Qaytarilgan to‘lov'?'To‘langan':label==='Qaytarish summasi'?'Umumiy to‘lov miqdori':label):label,value]);
+}
+function historyColumnDefinitions(mode){return [['№','№'],...sourceHistoryFields(products[0],historyModes[mode].rows[0],mode).map(([label])=>[label,label])];}
+function selectedHistoryColumns(mode){const keys=historyColumnDefinitions(mode).map(([key])=>key),saved=historyColumnProfiles[mode];return Array.isArray(saved)&&saved.includes('Mahsulot nomi')?saved.filter(key=>keys.includes(key)):keys;}
+function historyTableMarkup(product,rows,mode){
+  const keys=selectedHistoryColumns(mode);
+  return `<table><thead><tr>${keys.map(key=>sortHeader(key,key==='Mahsulot nomi'?'Mahsulot nomlari':key,'history')).join('')}</tr></thead><tbody>${rows.map((item,index)=>{const values=Object.fromEntries(sourceHistoryFields(product,item,mode));values['№']=index+1;return `<tr>${keys.map(key=>`<td>${key==='Mahsulot nomi'?`<a class="product-link" href="${historyLink(product,item,mode)}" data-entry="${item.id}">${values[key]}</a>`:values[key]}</td>`).join('')}</tr>`;}).join('')}</tbody></table>`;
+}
+document.addEventListener('click',event=>{if(!event.target.closest('[data-history-columns]'))return;columnContext='history';document.querySelector('#stock-columns-sheet .choice-note').textContent='Desktop tarix jadvali uchun. Telefonda kartalar va to‘liq tafsilotlar saqlanadi.';stockColumnDraft=[...currentColumns(),...currentColumnDefs().map(([key])=>key).filter(key=>!currentColumns().includes(key))].map(key=>({key,visible:currentColumns().includes(key)}));renderStockColumnChoices();openStockDialog(stockColumnsSheet);});
+document.getElementById('columns-select-all').addEventListener('click',()=>{stockColumnDraft.forEach(item=>item.visible=true);renderStockColumnChoices();});
 function historyLink(product, item, mode) {
-  return `#product=${product.barcode}&tab=${mode}&entry=${item.id}`;
+  return `#product=${product.barcode}${activeStockLot?`&lot=${activeStockLot}`:''}&tab=${mode}&entry=${item.id}`;
 }
 const historyFilterLabels = {currency: 'Valyuta', warehouse: 'Ombor', type: 'Turi', supplier: 'Ta’minotchi', buyer: 'Xaridor', from: 'Sanadan boshlab', to: 'Sanagacha'};
 const historyFilterKeys = {
@@ -330,20 +371,22 @@ const historyFilterKeys = {
   sales: ['currency', 'warehouse', 'type', 'buyer', 'from', 'to'],
   returns: ['currency', 'warehouse', 'supplier', 'from', 'to'],
   'sales-return': ['currency', 'warehouse', 'type', 'buyer', 'from', 'to'],
-  gross: ['currency', 'supplier', 'buyer', 'from', 'to'],
+  gross: ['currency', 'warehouse', 'supplier', 'buyer', 'from', 'to'],
 };
 const historyFilterState = new Map();
 const historyFilterKey = (product = activeProduct, mode = activeHistoryMode) => `${product}:${mode}`;
 const currentHistoryFilters = (product = activeProduct, mode = activeHistoryMode) => historyFilterState.get(historyFilterKey(product, mode)) || {};
 function historyRows(product, mode) {
   const selected = currentHistoryFilters(product.barcode, mode);
-  return historyModes[mode].rows.filter(item => item.product === product.barcode && historyFilterKeys[mode].every(key => {
+  const rows=historyModes[mode].rows.filter(item => item.product === product.barcode && historyFilterKeys[mode].every(key => {
     const value = selected[key];
     if (!value) return true;
     if (key === 'from') return item.date >= value;
     if (key === 'to') return item.date <= value;
     return item[key] === value;
   }));
+  const defs=historyColumnDefinitions(mode).map(([key,label])=>[key,label,item=>Object.fromEntries(sourceHistoryFields(product,item,mode))[key]]);
+  return sortReportRows(rows,defs,historySorts[mode]||{key:'',direction:'desc'},true);
 }
 function historyEmpty(product, mode) {
   const filtered = Object.values(currentHistoryFilters(product.barcode, mode)).some(Boolean);
@@ -370,6 +413,7 @@ function historyNavigation(mode) {
   filterButton.setAttribute('aria-expanded', 'false');
   filterButton.innerHTML = `${icon('filter')}<span class="history-filter-text">Filtr</span>${active.length ? `<span class="history-filter-count">${active.length}</span>` : ''}`;
   nav.append(filterButton);
+  const columnsButton=document.createElement('button');columnsButton.className='icon-button history-columns-trigger';columnsButton.dataset.historyColumns='';columnsButton.setAttribute('aria-label','Tarix jadvali ustunlari');columnsButton.setAttribute('aria-haspopup','dialog');columnsButton.innerHTML=icon('grid');nav.append(columnsButton);
   if (active.length) {
     const chips = document.createElement('div'); chips.className = 'filter-chips history-filter-chips';
     chips.setAttribute('aria-label', 'Tarixning faol filtrlari');
@@ -390,7 +434,7 @@ function transactionHistory(product, mode) {
   const section = document.createElement('section');
   section.className = 'purchase-history';
   section.setAttribute('aria-labelledby', 'purchase-title');
-  section.innerHTML = `<div class="section-heading"><h2 id="purchase-title">${config.title}</h2><span role="status" aria-live="polite">${rows.length} ta yozuv</span></div>${config.note ? `<p class="history-notice">${config.note}</p>` : ''}`;
+  section.innerHTML = `<div class="section-heading"><h2 id="purchase-title">${config.title}</h2><span role="status" aria-live="polite">${rows.length} ta yozuv</span><button class="text-button history-sort-button" data-sort-open="history">Saralash</button></div>${config.note ? `<p class="history-notice">${config.note}</p>` : ''}`;
   if (!rows.length) {
     section.innerHTML += historyEmpty(product, mode);
     return section;
@@ -406,27 +450,27 @@ function transactionHistory(product, mode) {
   const table = document.createElement('div');
   table.className = 'purchase-table'; table.tabIndex = 0;
   table.setAttribute('role', 'region'); table.setAttribute('aria-label', `${config.title} jadvali, gorizontal aylantirish mumkin`);
-  table.innerHTML = `<table><thead><tr><th scope="col">№</th>${config.fields(product, rows[0]).map(([label]) => `<th scope="col">${label}</th>`).join('')}</tr></thead><tbody>${rows.map((item, index) => `<tr><td>${index + 1}</td>${config.fields(product, item).map(([, value], fieldIndex) => `<td>${fieldIndex === 0 ? `<a class="product-link" href="${historyLink(product, item, mode)}" data-entry="${item.id}" aria-label="${dateLabel(item.date)} ${item.time} · ${config.detail}">${value}</a>` : value}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  table.innerHTML = historyTableMarkup(product,rows,mode);
   const totals = document.createElement('div'); totals.className = 'purchase-totals';
   totals.setAttribute('aria-label', 'Valyuta bo‘yicha yakunlar');
   [...new Set(rows.map(item => item.currency))].forEach(currency => {
     const block = document.createElement('section'); block.className = 'purchase-total';
     block.innerHTML = `<h3>${Object.values(currentHistoryFilters(product.barcode, mode)).some(Boolean) ? 'Filtrlangan jami' : 'Jami'} <span class="currency">${currency}</span></h3><dl></dl>`;
     block.querySelector('dl').append(...config.totals(rows.filter(item => item.currency === currency)).map(([label, value]) => field(label, format(value))));
-    totals.append(block);
+    if(config.totals(rows.filter(item=>item.currency===currency)).length)totals.append(block);
   });
   section.append(cards, table, totals);
   return section;
 }
 function purchaseLink(product, purchase) {
-  return `#product=${product.barcode}&purchase=${purchase.id}`;
+  return `#product=${product.barcode}${activeStockLot?`&lot=${activeStockLot}`:''}&purchase=${purchase.id}`;
 }
 function purchaseHistory(product) {
   const rows = historyRows(product, 'purchase');
   const section = document.createElement('section');
   section.className = 'purchase-history';
   section.setAttribute('aria-labelledby', 'purchase-title');
-  section.innerHTML = `<div class="section-heading"><h2 id="purchase-title">Sotib olish</h2><span role="status" aria-live="polite">${rows.length} ta kirim</span></div>`;
+  section.innerHTML = `<div class="section-heading"><h2 id="purchase-title">Sotib olish</h2><span role="status" aria-live="polite">${rows.length} ta kirim</span><button class="text-button history-sort-button" data-sort-open="history">Saralash</button></div>`;
   if (!rows.length) {
     section.innerHTML += historyEmpty(product, 'purchase');
     return section;
@@ -444,10 +488,7 @@ function purchaseHistory(product) {
   table.tabIndex = 0;
   table.setAttribute('role', 'region');
   table.setAttribute('aria-label', 'Sotib olish jadvali, gorizontal aylantirish mumkin');
-  const headings = ['№', 'Mahsulot nomlari', 'Shtrix-kod', 'Buyurtma raqami', 'Ombor', 'Valyuta', 'O‘lchov birligi', 'Filial', 'Ta’minotchi', 'Kirish miqdori', 'Qoldiq miqdori', 'Kirish narxi', 'Sotish narxi', 'Yakuniy kirish narxi', 'Yakuniy narx', 'Yaratilgan sana'];
-  table.innerHTML = `<table><thead><tr>${headings.map(label => `<th scope="col">${label}</th>`).join('')}</tr></thead><tbody>${rows.map((item, index) => `<tr>
-    <td>${index + 1}</td><td><a class="product-link" href="${purchaseLink(product, item)}" data-purchase="${item.id}" aria-label="${dateLabel(item.date)} ${item.time} dagi kirim tafsiloti">${product.name}</a></td><td>${product.barcode}</td><td>${item.order}</td><td>${item.warehouse}</td><td>${item.currency}</td><td>${product.unit}</td><td>${product.branch}</td><td>${item.supplier}</td><td class="numeric">${format(item.quantity)}</td><td class="numeric">${format(item.remaining)}</td><td class="numeric">${format(item.cost)}</td><td class="numeric">${format(item.sale)}</td><td class="numeric">${format(item.quantity * item.cost)}</td><td class="numeric">${format(item.remaining * item.sale)}</td><td>${dateLabel(item.date)} · ${item.time}</td>
-  </tr>`).join('')}</tbody></table>`;
+  table.innerHTML = historyTableMarkup(product,rows,'purchase');
   const totals = document.createElement('div');
   totals.className = 'purchase-totals';
   totals.setAttribute('aria-label', 'Valyuta bo‘yicha xarid yakunlari');
@@ -469,7 +510,7 @@ function purchaseHistory(product) {
 }
 function showProduct(product, purchase = null, mode = 'purchase') {
   const config = historyModes[mode];
-  if (activeProduct === product.barcode && activePurchase === (purchase?.id || null) && activeHistoryMode === mode) return;
+  if (activeProduct === product.barcode && activePurchase === (purchase?.id || null) && activeHistoryMode === mode && activeStockLot === (product.stockLot||null)) return;
   const restoringPurchase = !purchase && activePurchase && activeProduct === product.barcode && activeHistoryMode === mode && purchaseReturn?.product === product.barcode && purchaseReturn?.mode === mode ? purchaseReturn : null;
   if (purchase && !activePurchase && activeProduct === product.barcode) {
     purchaseReturn = {product: product.barcode, mode, scroll: window.scrollY, expanded: detailContent.querySelector('details')?.open, id: purchase.id};
@@ -479,6 +520,7 @@ function showProduct(product, purchase = null, mode = 'purchase') {
   detailBack.setAttribute('aria-label', purchase ? 'Mahsulotga qaytish' : detailOrigin === 'home' ? 'Bosh sahifaga qaytish' : 'Qoldiqlarga qaytish');
   document.getElementById('detail-page-label').textContent = purchase ? config.detail : 'Mahsulot tafsiloti';
   activeProduct = product.barcode;
+  activeStockLot = product.stockLot||null;
   activeHistoryMode = mode;
   activePurchase = purchase?.id || null;
   const summary = document.createElement('section');
@@ -497,7 +539,7 @@ function showProduct(product, purchase = null, mode = 'purchase') {
       <dl class="detail-totals"><div><dt>Qoldiq</dt><dd>${format(product.quantity)} <span class="unit">${product.unit}</span></dd></div><div><dt>Kirish qiymati · ${product.currency}</dt><dd>${format(product.quantity * product.price)}</dd></div></dl>
       <details class="product-metadata"><summary>Mahsulot ma’lumotlari <span aria-hidden="true">⌄</span></summary><dl class="detail-fields"></dl></details>`;
     summary.querySelector('h1').textContent = product.name;
-    summary.querySelector('.detail-fields').append(...[['Turkum',product.category],['Variatsiya',product.variant],['Filial',product.branch],['Ombor',product.warehouse],['Ta’minotchi',product.supplier],['O‘lchov birligi',product.unit],['Kirish narxi',money(product.price,product.currency)],['Sotish narxi',money(product.salePrice,product.currency)],['Sotish qiymati',money(product.quantity*product.salePrice,product.currency)],['Yaroqlilik muddati',product.expiry?dateLabel(product.expiry):'Ko‘rsatilmagan'],['Muddat holati',stockExpiry(product)||'Ko‘rsatilmagan'],['Ishlab chiqarish raqami',product.batch],['Minimal qoldiq',`${format(product.minimum)} ${product.unit}`]].map(([label,value])=>field(label,value)));
+    summary.querySelector('.detail-fields').append(...[['Turkum',product.category],['Variatsiya',product.variant],['Filial',product.branch],['Ta’minotchi',product.supplier],['O‘lchov birligi',product.unit],['Kirish narxi',money(product.price,product.currency)],['Sotish narxi',money(product.salePrice,product.currency)],['Sotish qiymati',money(product.quantity*product.salePrice,product.currency)],['Yaroqlilik muddati',product.expiry?dateLabel(product.expiry):'Ko‘rsatilmagan'],['Muddat holati',stockExpiry(product)||'Ko‘rsatilmagan'],['Ishlab chiqarish raqami',product.batch]].map(([label,value])=>field(label,value)));
     // Desktop starts expanded; mobile keeps the history near the first screen.
     summary.querySelector('details').open = restoringPurchase ? restoringPurchase.expanded : innerWidth > 760;
     detailContent.replaceChildren(summary, historyNavigation(mode), transactionHistory(product, mode));
@@ -571,7 +613,10 @@ function applyRoute() {
   if (invoice) { showInvoice(invoice); return; }
   if (invoiceId) history.replaceState(null, '', '#invoices');
   const code = new URLSearchParams(location.hash.slice(1)).get('product');
-  const product = products.find(item => item.barcode === code);
+  const originalProduct = products.find(item => item.barcode === code);
+  const lotId=new URLSearchParams(location.hash.slice(1)).get('lot');
+  const lot=stockLots.find(item=>item.id===lotId&&item.barcode===code);
+  const product=lot?{...lot,status:stockStatus(lot),stockLot:lot.id}:originalProduct;
   if (product) {
     const params = new URLSearchParams(location.hash.slice(1));
     const mode = Object.hasOwn(historyModes, params.get('tab')) ? params.get('tab') : 'purchase';
@@ -585,11 +630,12 @@ function applyRoute() {
   if (!fromDetail && activeView === view) return;
   rememberView();
   activeProduct = null;
+  activeStockLot = null;
   activeInvoice = null;
   activeReservation = null;
   activePurchase = null;
   activeView = view;
-  if(view==='reports'||view==='reserved'){const nextTab=view==='reserved'?'reserved':'stock';if(stockTab!==nextTab){reportSearches[stockTab]=search.value;reportPages[stockTab]=stockPageNumber;stockTab=nextTab;search.value=reportSearches[stockTab];stockPageNumber=reportPages[stockTab];render();}else if(!fromDetail)render();updateStockSubNavigation();}
+  if(view==='reports'||view==='reserved'){const nextTab=view==='reserved'?'reserved':'stock';if(stockTab!==nextTab){reportSearches[stockTab]=search.value;reportPages[stockTab]=stockPageNumber;stockTab=nextTab;barcodeSearch.value=reportBarcodes[stockTab];search.value=reportSearches[stockTab];stockPageNumber=reportPages[stockTab];render();}else if(!fromDetail)render();updateStockSubNavigation();}
   productPage.hidden = true;
   workspace.hidden = false;
   dashboard.hidden = view !== 'home';
@@ -622,7 +668,7 @@ function goBack() {
   returning = true;
   if (activePurchase) {
     if (history.state?.rizoPurchase) history.back();
-    else { history.replaceState(null, '', `#product=${activeProduct}&tab=${activeHistoryMode}`); syncRoute(); }
+    else { history.replaceState(null, '', `#product=${activeProduct}${activeStockLot?`&lot=${activeStockLot}`:''}&tab=${activeHistoryMode}`); syncRoute(); }
   } else if (history.state?.rizoDetail) history.back();
   else {
     history.replaceState(null, '', `#${detailOrigin}`);
@@ -662,7 +708,7 @@ function switchHistory(mode) {
   if (!Object.hasOwn(historyModes, mode) || !activeProduct) return;
   const expanded = detailContent.querySelector('.product-metadata')?.open;
   const position = window.scrollY;
-  history.replaceState(history.state, '', `#product=${activeProduct}&tab=${mode}`);
+  history.replaceState(history.state, '', `#product=${activeProduct}${activeStockLot?`&lot=${activeStockLot}`:''}&tab=${mode}`);
   syncRoute();
   const metadata = detailContent.querySelector('.product-metadata');
   if (metadata) metadata.open = expanded;
@@ -718,7 +764,7 @@ function showHistoryFilterFields(focusKey) {
   document.getElementById('history-filter-error').textContent = '';
   historyFilterBody.replaceChildren();
   const note = document.createElement('p'); note.className = 'choice-note';
-  note.textContent = activeHistoryMode === 'gross' ? 'Yalpi daromad barcha omborlar bo‘yicha. Bu bo‘limda ombor filtri qo‘llanmaydi.' : 'Filtrlar faqat tarix yozuvlariga qo‘llanadi.';
+  note.textContent = 'Filtrlar faqat tarix yozuvlariga qo‘llanadi.';
   historyFilterBody.append(note);
   historyFilterKeys[activeHistoryMode].filter(key => key !== 'from' && key !== 'to').forEach(key => {
     const button = document.createElement('button'); button.type = 'button'; button.className = 'filter-field'; button.dataset.historyField = key;
@@ -937,28 +983,28 @@ const reservations=[
 const reservedFilterLabels={branch:'Filial',supplier:'Ta’minotchi',warehouse:'Ombor',unit:'O‘lchov birligi',cashier:'Xodim',currency:'Valyuta',type:'Turi',from:'Sanadan boshlab',to:'Sanagacha',group:'Guruhlash'};
 const emptyReservedFilters=()=>({branch:'',supplier:'',warehouse:'',unit:'',cashier:'',currency:'',type:'',from:'',to:'',group:false});
 let reservedFilters=emptyReservedFilters(),reservedDraft=emptyReservedFilters(),reservedChoosing=null;
-const reservedColumnDefs=[['date','Yaratilgan sana',p=>`${dateLabel(p.date)} · ${p.time}`],['name','Mahsulot nomlari',p=>p.name],['variant','Variatsiya',p=>p.variant],['barcode','Shtrix-kod',p=>p.barcode],['category','Turkum',p=>p.category],['type','Turi',p=>p.type],['quantity','Miqdori',p=>p.quantity],['unit','O‘lchov birligi',p=>p.unit],['currency','Valyuta',p=>p.currency],['price','Sotib olish narxi',p=>p.price],['salePrice','Sotish narxi',p=>p.salePrice],['paid','To‘langan',p=>p.paid],['difference','Tafovut',p=>p.total-p.paid],['total','Umumiy to‘lov miqdori',p=>p.total],['cashier','Kassir',p=>p.cashier],['branch','Filial',p=>p.branch],['warehouse','Ombor',p=>p.warehouse],['supplier','Ta’minotchi',p=>p.supplier],['synced','Sinxronizatsiya sanasi',p=>`${dateLabel(p.date)} · ${p.time}`],['batch','Ishlab chiqarish raqami',p=>p.batch]];
+const reservedColumnDefs=[['rowNumber','№',(_p,index)=>index+1],['date','Yaratilgan sana',p=>`${dateLabel(p.date)} · ${p.time}`],['name','Mahsulot nomlari',p=>p.name],['variant','Variatsiya',p=>p.variant],['barcode','Shtrix-kod',p=>p.barcode],['category','Turkum',p=>p.category],['type','Turi',p=>p.type],['quantity','Miqdori',p=>p.quantity],['unit','O‘lchov birligi',p=>p.unit],['currency','Valyuta',p=>p.currency],['price','Sotib olish narxi',p=>p.price],['salePrice','Sotish narxi',p=>p.salePrice],['paid','To‘langan',p=>p.paid],['difference','Tafovut',p=>p.total-p.paid],['total','Umumiy to‘lov miqdori',p=>p.total],['cashier','Kassir',p=>p.cashier],['branch','Filial',p=>p.branch],['warehouse','Ombor',p=>p.warehouse],['supplier','Ta’minotchi',p=>p.supplier],['synced','Sinxronizatsiya sanasi',p=>`${dateLabel(p.synced.slice(0,10))} · ${p.synced.slice(11,16)}`],['batch','Ishlab chiqarish raqami',p=>p.batch]];
 let reservedColumns=reservedColumnDefs.map(([key])=>key);
-try{const saved=JSON.parse(localStorage.getItem('rizo-reserved-columns'));if(Array.isArray(saved)&&saved.includes('name'))reservedColumns=[...new Set(saved.filter(key=>reservedColumnDefs.some(([id])=>id===key)))];}catch{}
+try{const saved=JSON.parse(localStorage.getItem('rizo-reserved-columns-v2'));if(Array.isArray(saved)&&saved.includes('name'))reservedColumns=[...new Set(saved.filter(key=>reservedColumnDefs.some(([id])=>id===key)))];}catch{}
 function groupReservations(rows){const groups=new Map();rows.forEach(row=>{const key=JSON.stringify([row.barcode,row.variant,row.type,row.currency,row.price,row.salePrice,row.cashier,row.branch,row.warehouse,row.supplier,row.date,row.time,row.synced,row.batch]);if(groups.has(key)){const p=groups.get(key);p.quantity+=row.quantity;p.paid+=row.paid;p.total+=row.total;p.ids.push(row.id);}else groups.set(key,{...row,id:`group-${row.id}`,ids:[row.id]});});return [...groups.values()];}
 function allReservedRows(){return [...reservations,...groupReservations(reservations)];}
-function filteredReservedRows(){const query=search.value.trim().toLocaleLowerCase('uz');let rows=reservations.filter(p=>`${p.name} ${p.barcode}`.toLocaleLowerCase('uz').includes(query)&&['branch','supplier','warehouse','unit','cashier','currency','type'].every(key=>!reservedFilters[key]||p[key]===reservedFilters[key])&&(!reservedFilters.from||`${p.date}T${p.time}`>=reservedFilters.from)&&(!reservedFilters.to||`${p.date}T${p.time}`<=reservedFilters.to));return reservedFilters.group?groupReservations(rows):rows;}
-function reservedTableMarkup(rows,links=true){const columns=reservedColumns.map(key=>reservedColumnDefs.find(([id])=>id===key));return `<table><thead><tr><th scope="col">№</th>${columns.map(([,label])=>`<th scope="col">${label}</th>`).join('')}</tr></thead><tbody>${rows.map((p,i)=>`<tr><td>${links?(stockPageNumber-1)*stockPageSize+i+1:i+1}</td>${columns.map(([key,,value])=>{const v=value(p);return `<td class="${typeof v==='number'?'numeric':''}">${key==='name'&&links?`<a class="product-link" href="#reserved=${p.id}" data-reservation="${p.id}">${v}</a>`:typeof v==='number'?format(v):v}</td>`;}).join('')}</tr>`).join('')}</tbody></table>`;}
+function filteredReservedRows(){const query=search.value.trim().toLocaleLowerCase('uz');let rows=reservations.filter(p=>`${p.name} ${p.barcode}`.toLocaleLowerCase('uz').includes(query)&&(!barcodeSearch.value.trim()||p.barcode.toLocaleLowerCase('uz').includes(barcodeSearch.value.trim().toLocaleLowerCase('uz')))&&['branch','supplier','warehouse','unit','cashier','currency','type'].every(key=>!reservedFilters[key]||p[key]===reservedFilters[key])&&(!reservedFilters.from||`${p.date}T${p.time}`>=reservedFilters.from)&&(!reservedFilters.to||`${p.date}T${p.time}`<=reservedFilters.to));return sortReportRows(reservedFilters.group?groupReservations(rows):rows,reservedColumnDefs,reportSorts.reserved);}
+function reservedTableMarkup(rows,links=true){const columns=reservedColumns.map(key=>reservedColumnDefs.find(([id])=>id===key));return `<table><thead><tr>${columns.map(([key,label])=>sortHeader(key,label,'report',links)).join('')}</tr></thead><tbody>${rows.map((p,i)=>`<tr>${columns.map(([key,,value])=>{const v=value(p,links?(stockPageNumber-1)*stockPageSize+i:i);return `<td class="${typeof v==='number'?'numeric':''}">${key==='name'&&links?`<a class="product-link" href="#reserved=${p.id}" data-reservation="${p.id}">${v}</a>`:typeof v==='number'?format(v):v}</td>`;}).join('')}</tr>`).join('')}</tbody></table>`;}
 function reservedTotalsMarkup(rows){return [...new Set(rows.map(p=>p.currency))].map(currency=>{const list=rows.filter(p=>p.currency===currency),paid=list.reduce((s,p)=>s+p.paid,0),total=list.reduce((s,p)=>s+p.total,0);return `<section class="purchase-total"><h3>Jami <span class="currency">${currency}</span></h3><dl><div><dt>Umumiy to‘lov</dt><dd>${format(total)}</dd></div><div><dt>To‘langan</dt><dd>${format(paid)}</dd></div><div><dt>Tafovut</dt><dd>${format(total-paid)}</dd></div></dl></section>`;}).join('');}
 function reservedDateLabel(value){return value?`${dateLabel(value.slice(0,10))}${value.includes('T')?' · '+value.slice(11,16):''}`:'Barchasi';}
 function renderReserved(){const rows=filteredReservedRows(),pages=Math.max(1,Math.ceil(rows.length/stockPageSize));stockPageNumber=Math.min(Math.max(stockPageNumber,1),pages);const visible=rows.slice((stockPageNumber-1)*stockPageSize,stockPageNumber*stockPageSize);document.getElementById('result-count').textContent=`${rows.length} ta ${reservedFilters.group?'guruh':'zaxira yozuvi'}`;document.querySelector('#main .table-wrap').innerHTML=reservedTableMarkup(visible);document.querySelector('#main .table-wrap').hidden=!rows.length;
-  const cards=document.getElementById('cards');cards.hidden=!rows.length;cards.innerHTML=visible.map(p=>`<article class="stock-card"><div class="card-head"><h2><a class="product-link" href="#reserved=${p.id}" data-reservation="${p.id}" aria-label="${p.name} — ${p.ids.join(', ')} zaxira tafsiloti">${p.name}</a></h2><span class="currency">${p.currency}</span></div><div class="reserved-meta"><span>${p.type}</span><time datetime="${p.date}T${p.time}">${dateLabel(p.date)} · ${p.time}</time></div><dl class="card-values"><div><dt>Zaxiralangan</dt><dd>${format(p.quantity)} <span class="unit">${p.unit}</span></dd></div><div><dt>Umumiy to‘lov</dt><dd>${format(p.total)}</dd></div></dl><div class="reserved-card-bottom"><span class="status ${p.paid>=p.total?'ok':p.paid?'low':'zero'}">${p.paid>=p.total?'To‘langan':p.paid?'Qisman to‘langan':'To‘lanmagan'}</span><span class="invoice-detail-hint" aria-hidden="true">Tafsilot ›</span></div></article>`).join('');
+  const cards=document.getElementById('cards');cards.hidden=!rows.length;cards.innerHTML=visible.map(p=>`<article class="stock-card"><div class="card-head"><h2><a class="product-link" href="#reserved=${p.id}" data-reservation="${p.id}" aria-label="${p.name} — ${p.ids.join(', ')} zaxira tafsiloti">${p.name}</a></h2><span class="currency">${p.currency}</span></div><div class="reserved-meta"><span>${p.type}</span><time datetime="${p.date}T${p.time}">${dateLabel(p.date)} · ${p.time}</time></div><dl class="card-values"><div><dt>Zaxiralangan</dt><dd>${format(p.quantity)} <span class="unit">${p.unit}</span></dd></div><div><dt>Umumiy to‘lov</dt><dd>${format(p.total)}</dd></div></dl><div class="reserved-card-bottom"><span class="status ${p.paid>=p.total?'ok':p.paid?'low':'zero'}">${p.paid>=p.total?'To‘langan':p.paid?'Qisman to‘langan':'To‘lanmagan'}</span><a class="invoice-detail-hint" href="#reserved=${p.id}" data-reservation="${p.id}" aria-label="${p.ids.join(', ')} tafsiloti">Tafsilot ›</a></div></article>`).join('');
   document.getElementById('empty').hidden=!!rows.length;document.querySelector('#empty h2').textContent='Zaxiralangan mahsulot topilmadi';document.getElementById('clear-search').textContent='Qidiruv va filtrlarni tozalash';
   const pager=document.getElementById('stock-pagination');pager.hidden=pages<=1;pager.innerHTML=`<button class="outline-button" data-stock-page="${stockPageNumber-1}" ${stockPageNumber===1?'disabled':''} aria-label="Oldingi qoldiq sahifasi">‹</button><span>${stockPageNumber} / ${pages}</span><button class="outline-button" data-stock-page="${stockPageNumber+1}" ${stockPageNumber===pages?'disabled':''} aria-label="Keyingi qoldiq sahifasi">›</button>`;
-  document.getElementById('stock-totals').innerHTML=reservedTotalsMarkup(rows);document.getElementById('stock-context-note').hidden=true;
+  document.getElementById('stock-totals').replaceChildren();document.getElementById('stock-context-note').hidden=true;
   const active=Object.entries(reservedFilters).filter(([,v])=>v),chips=document.getElementById('filter-chips');chips.replaceChildren();active.forEach(([key,value])=>{const label=`${reservedFilterLabels[key]}: ${key==='group'?'Yoqilgan':['from','to'].includes(key)?reservedDateLabel(value):value}`;const button=document.createElement('button');button.className='filter-chip';button.textContent=`${label} ×`;button.setAttribute('aria-label',`${label} filtrini olib tashlash`);button.addEventListener('click',()=>{reservedFilters[key]=emptyReservedFilters()[key];resetStockPage();filterTrigger.focus({preventScroll:true});});chips.append(button);});const badge=document.getElementById('filter-count');badge.hidden=!active.length;badge.textContent=active.length;filterTrigger.setAttribute('aria-label',active.length?`Filtr, ${active.length} ta faol`:'Filtr');
 }
 const stockSubSheet=document.getElementById('stock-sub-sheet'),stockSubPicker=document.getElementById('stock-sub-picker');let stockSubOverflow='';
-function updateStockSubNavigation(){const reserved=stockTab==='reserved';document.getElementById('reports-title').textContent=reserved?'Zaxiralangan mahsulotlar':'Qoldiq';stockSubPicker.querySelector('strong').textContent=reserved?'Zaxiralangan mahsulotlar':'Qoldiq';document.querySelector('#main .table-wrap').setAttribute('aria-label',reserved?'Zaxiralangan mahsulotlar jadvali, gorizontal aylantirish mumkin':'Qoldiqlar jadvali, gorizontal aylantirish mumkin');document.querySelector('#main>.stage-note').textContent=reserved?'Sinov zaxira yozuvlari. Tafovut = umumiy to‘lov − to‘langan. Summalar valyutalar bo‘yicha alohida.':'Sinov ma’lumotlari · 06.10.2026 holatiga. Summalar valyutalar bo‘yicha alohida hisoblanadi.';document.querySelectorAll('.stock-subtabs [data-route],#stock-sub-sheet [data-route]').forEach(button=>{const current=button.dataset.route===(reserved?'reserved':'reports');button.classList.toggle('selected',current&&!!button.closest('.stock-subtabs'));if(current)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');if(button.closest('#stock-sub-sheet')){button.querySelector('svg')?.remove();if(current)button.insertAdjacentHTML('beforeend','<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>');}});}
+function updateStockSubNavigation(){const reserved=stockTab==='reserved';document.querySelector('#main [data-stock-action="print"]').hidden=reserved;document.getElementById('reports-title').textContent=reserved?'Zaxiralangan mahsulotlar':'Qoldiq';stockSubPicker.querySelector('strong').textContent=reserved?'Zaxiralangan mahsulotlar':'Qoldiq';document.querySelector('#main .table-wrap').setAttribute('aria-label',reserved?'Zaxiralangan mahsulotlar jadvali, gorizontal aylantirish mumkin':'Qoldiqlar jadvali, gorizontal aylantirish mumkin');document.querySelector('#main>.stage-note').textContent=reserved?'Sinov zaxira yozuvlari. Jonli omborga bog‘lanmagan.':'Sinov ma’lumotlari · 06.10.2026 holatiga. Summalar valyutalar bo‘yicha alohida hisoblanadi.';document.querySelectorAll('.stock-subtabs [data-route],#stock-sub-sheet [data-route]').forEach(button=>{const current=button.dataset.route===(reserved?'reserved':'reports');button.classList.toggle('selected',current&&!!button.closest('.stock-subtabs'));if(current)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');if(button.closest('#stock-sub-sheet')){button.querySelector('svg')?.remove();if(current)button.insertAdjacentHTML('beforeend','<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>');}});}
 stockSubPicker.addEventListener('click',()=>{stockSubOverflow=document.body.style.overflow;document.body.style.overflow='hidden';stockSubSheet.showModal();stockSubPicker.setAttribute('aria-expanded','true');});stockSubSheet.querySelector('[data-stock-sub-close]').addEventListener('click',()=>stockSubSheet.close());stockSubSheet.addEventListener('close',()=>{document.body.style.overflow=stockSubOverflow;stockSubPicker.setAttribute('aria-expanded','false');if(stockSubPicker.getClientRects().length)stockSubPicker.focus({preventScroll:true});});stockSubSheet.addEventListener('click',event=>{if(event.target!==stockSubSheet)return;const r=stockSubSheet.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)stockSubSheet.close();});
 function showReservation(p){if(activeReservation===p.id)return;rememberView();activeReservation=p.id;activeInvoice=null;activeProduct=null;activePurchase=null;workspace.hidden=true;invoicePage.hidden=true;productPage.hidden=false;detailBack.setAttribute('aria-label','Zaxiralangan mahsulotlarga qaytish');document.getElementById('detail-page-label').textContent='Zaxira tafsiloti';
   const summary=document.createElement('section');summary.className='detail-summary';summary.innerHTML=`<div class="detail-kicker"><span>${dateLabel(p.date)} · ${p.time}</span><span class="currency">${p.currency}</span></div><h1 id="product-title" tabindex="-1">${p.name}</h1><p class="choice-note">${p.ids.join(' · ')} · ${p.type}</p><dl class="detail-totals"><div><dt>Zaxiralangan</dt><dd>${format(p.quantity)} <span class="unit">${p.unit}</span></dd></div><div><dt>Umumiy to‘lov · ${p.currency}</dt><dd>${format(p.total)}</dd></div></dl>`;
-  const info=document.createElement('section');info.className='detail-information';info.innerHTML='<h2>Zaxira ma’lumotlari</h2><dl class="detail-fields"></dl>';info.querySelector('dl').append(...reservedColumnDefs.map(([key,label,value])=>{const v=value(p);return field(label,typeof v==='number'?key==='quantity'?`${format(v)} ${p.unit}`:money(v,p.currency):v);}));
+  const info=document.createElement('section');info.className='detail-information';info.innerHTML='<h2>Zaxira ma’lumotlari</h2><dl class="detail-fields"></dl>';info.querySelector('dl').append(...reservedColumnDefs.filter(([key])=>key!=='rowNumber').map(([key,label,value])=>{const v=value(p);return field(label,typeof v==='number'?key==='quantity'?`${format(v)} ${p.unit}`:money(v,p.currency):v);}));
   const note=document.createElement('p');note.className='stage-note';note.textContent='Sinov zaxira yozuvi. Tafovut = umumiy to‘lov − to‘langan. Jonli omborga bog‘lanmagan.';detailContent.classList.add('is-purchase-detail');detailContent.replaceChildren(summary,info,note);document.title=`${p.name} · Zaxira · Rizo Store`;window.scrollTo(0,0);summary.querySelector('h1').focus({preventScroll:true});
 }
 const reservedFilterSheet=document.getElementById('reserved-filter-sheet'),reservedFilterBody=document.getElementById('reserved-filter-body'),reservedFilterChoices=document.getElementById('reserved-filter-choices'),reservedOptionSearch=document.getElementById('reserved-option-search');let reservedFilterOverflow='';

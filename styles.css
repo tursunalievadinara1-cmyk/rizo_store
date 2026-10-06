@@ -277,3 +277,15 @@ a.product-link{display:inline-block}
   .invoice-caption{margin-top:0}
   #invoice-filter-count{position:absolute;right:-5px;top:-5px}
 }
+
+/* Compact secondary search preserves the source's independent barcode filter. */
+.barcode-search{margin-top:8px;max-width:520px}.barcode-search summary{cursor:pointer;min-height:44px;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}.barcode-search summary::after{content:'⌄';margin-left:auto}.barcode-search[open] summary::after{content:'⌃'}.barcode-search .search{width:100%;margin-bottom:8px}
+.reserved-card-bottom a{position:relative;z-index:1;display:inline-flex;align-items:center;min-height:44px;padding:6px 0 6px 12px;text-decoration:none}
+.column-choice .icon-button{width:44px;height:44px}.text-button{min-height:44px}
+
+.history-columns-trigger{border:1px solid var(--line);background:white;min-height:52px;color:var(--primary)}
+@media(max-width:760px){.history-columns-trigger{height:58px}.history-navigation{gap:6px}.history-picker{padding:8px 10px}.history-picker strong{font-size:13px}}
+
+.barcode-search summary{overflow-wrap:anywhere}.barcode-search summary::after{flex-shrink:0}.purchase-totals:empty{display:none}
+
+.table-sort{font:inherit;color:inherit;text-transform:inherit;display:flex;align-items:center;gap:10px;min-height:44px;padding:0;background:none;border:0;text-align:left}.table-sort span{color:var(--muted)}th:has(.table-sort){padding-block:4px}.sort-directions{display:flex;gap:8px;margin:10px 0;flex-shrink:0}.sort-directions button{flex:1;border:1px solid var(--line);border-radius:10px;background:var(--bg);min-height:44px;font-size:13px}.sort-directions button[aria-pressed=true],#sort-options button[aria-pressed=true]{background:var(--pale);border-color:#dbb5ec;color:var(--primary)}#sort-options svg{margin-left:auto}#sort-options button{justify-content:space-between}.purchase-history>.section-heading{flex-wrap:wrap}.history-sort-button{margin-left:auto}.section-heading:has(.history-sort-button)>span{margin-left:auto}.section-heading:has(.history-sort-button){gap:8px}.section-heading:has(.history-sort-button) .history-sort-button{margin-left:0}
