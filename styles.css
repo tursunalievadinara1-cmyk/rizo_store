@@ -180,3 +180,30 @@
   .history-navigation+.purchase-history .section-heading h2{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
   .purchase-quantities dd{font-size:16px}
 }
+
+.history-navigation{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+.history-filter-trigger{margin-left:auto;position:relative;background:white;border-color:var(--line);min-height:52px}
+.history-filter-count{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 4px;border-radius:20px;background:var(--primary);color:white;font-size:10px}
+.history-filter-chips{flex-basis:100%;margin-top:0!important}
+.history-clear{border:0;background:transparent;color:var(--primary);font-size:12px;min-height:36px;padding:6px 10px}
+.history-filter-sheet{overflow:hidden}
+#history-filter-form{display:flex;flex-direction:column;min-height:0}
+.history-filter-body{overflow:auto;min-height:0;padding:6px 2px}
+.history-filter-body .filter-field{min-height:58px;margin-bottom:8px;padding-top:8px;padding-bottom:8px}
+.history-filter-body .field-arrow{top:17px}
+.history-filter-body .choice-note{margin-top:0}
+.history-date-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.history-date-fields label{min-width:0;font-size:11px;color:var(--muted)}
+.history-date-fields label>span{display:block;margin:3px 0 6px}
+.history-date-fields input{display:block;width:100%;min-width:0;max-width:100%;height:48px;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:8px;color:var(--ink);font:inherit;font-size:16px}
+.history-filter-error{font-size:12px;color:#a32638;margin:8px 0 0;flex-shrink:0}
+.history-filter-error:empty{display:none}
+#history-filter-search-wrap{max-width:none;margin-bottom:8px}
+#history-filter-option-list{padding:2px}
+@media(max-width:760px){
+  .history-navigation .history-picker{flex:1;min-width:0;width:auto}
+  .history-filter-trigger{width:48px;min-height:58px;padding:0;flex-shrink:0;border-radius:10px}
+  .history-filter-text{display:none}
+  .history-filter-count{position:absolute;top:-5px;right:-5px}
+}
+@media(max-width:360px){.history-date-fields{grid-template-columns:1fr}}

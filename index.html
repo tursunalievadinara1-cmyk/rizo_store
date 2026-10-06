@@ -94,5 +94,19 @@
     <header class="sheet-header"><h2 id="history-mode-title">Mahsulot tarixi</h2><button class="icon-button" id="history-mode-close" aria-label="Tarix bo‘limlarini yopish"><span data-icon="close"></span></button></header>
     <div id="history-mode-options" class="report-choices"></div>
   </dialog>
+  <dialog id="history-filter-sheet" class="filter-sheet history-filter-sheet" aria-labelledby="history-filter-title">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <header class="sheet-header"><button id="history-filter-back" class="icon-button" aria-label="Tarix filtriga qaytish" hidden><span data-icon="back"></span></button><h2 id="history-filter-title">Tarix filtri</h2><button id="history-filter-close" class="icon-button" aria-label="Tarix filtrini yopish"><span data-icon="close"></span></button></header>
+    <form id="history-filter-form">
+      <div id="history-filter-body" class="history-filter-body"></div>
+      <div id="history-filter-choices" class="history-filter-body" hidden>
+        <label id="history-filter-search-wrap" class="search"><span data-icon="search"></span><input id="history-filter-search" type="search" placeholder="Qidirish" aria-label="Tanlovlarni qidirish" autocomplete="off"></label>
+        <fieldset class="filter-options"><legend class="sr-only">Qiymatni tanlang</legend><div id="history-filter-option-list"></div></fieldset>
+        <p id="history-filter-no-options" class="choice-note" role="status" hidden>Mos tanlov topilmadi.</p>
+      </div>
+      <p id="history-filter-error" class="history-filter-error" role="alert"></p>
+      <footer id="history-filter-footer" class="sheet-footer"><button type="button" id="history-filter-reset" class="outline-button">Tozalash</button><button type="submit" class="primary-button">Qo‘llash</button></footer>
+    </form>
+  </dialog>
 </body>
 </html>

@@ -14,7 +14,7 @@ const purchases = products.flatMap((product, index) => {
   const remaining = Math.ceil(product.quantity * 0.6);
   return [
     {id: `${product.barcode}-01`, product: product.barcode, date: '2026-10-05', time: '14:30', quantity: remaining + 10, remaining, currency: product.currency, cost: product.price, sale: product.price * 1.2, order: 'NAM-1001', warehouse: 'Namuna ombor', supplier: index === 2 ? 'Qurilish va santexnika mahsulotlari ta’minoti — uzun nomli namuna tashkilot' : 'Namuna ta’minotchi', type: 'Zayavka orqali'},
-    {id: `${product.barcode}-02`, product: product.barcode, date: '2026-09-24', time: '09:15', quantity: product.quantity - remaining + 5, remaining: product.quantity - remaining, currency: product.currency, cost: product.price, sale: product.price * 1.2, order: '—', warehouse: 'Namuna ombor', supplier: 'Ikkinchi namuna ta’minotchi', type: 'Zakup orqali'},
+    {id: `${product.barcode}-02`, product: product.barcode, date: '2026-09-24', time: '09:15', quantity: product.quantity - remaining + 5, remaining: product.quantity - remaining, currency: product.currency, cost: product.price, sale: product.price * 1.2, order: '—', warehouse: 'Ikkinchi namuna ombor', supplier: 'Ikkinchi namuna ta’minotchi', type: 'Zakup orqali'},
     ...(index === 0 ? [{id: `${product.barcode}-03`, product: product.barcode, date: '2026-09-10', time: '11:05', quantity: 20, remaining: 0, currency: 'USD', cost: 0.65, sale: 0.85, order: 'NAM-0998', warehouse: 'Namuna ombor', supplier: 'Namuna ta’minotchi', type: 'Zayavka orqali'}] : []),
   ];
 });
@@ -315,24 +315,75 @@ function saleFields(product, item) {
 function historyLink(product, item, mode) {
   return `#product=${product.barcode}&tab=${mode}&entry=${item.id}`;
 }
+const historyFilterLabels = {currency: 'Valyuta', warehouse: 'Ombor', type: 'Turi', supplier: 'Ta’minotchi', buyer: 'Xaridor', from: 'Sanadan boshlab', to: 'Sanagacha'};
+const historyFilterKeys = {
+  purchase: ['currency', 'warehouse', 'type', 'supplier', 'from', 'to'],
+  sales: ['currency', 'warehouse', 'type', 'buyer', 'from', 'to'],
+  returns: ['currency', 'warehouse', 'supplier', 'from', 'to'],
+  'sales-return': ['currency', 'warehouse', 'type', 'buyer', 'from', 'to'],
+  gross: ['currency', 'supplier', 'buyer', 'from', 'to'],
+};
+const historyFilterState = new Map();
+const historyFilterKey = (product = activeProduct, mode = activeHistoryMode) => `${product}:${mode}`;
+const currentHistoryFilters = (product = activeProduct, mode = activeHistoryMode) => historyFilterState.get(historyFilterKey(product, mode)) || {};
+function historyRows(product, mode) {
+  const selected = currentHistoryFilters(product.barcode, mode);
+  return historyModes[mode].rows.filter(item => item.product === product.barcode && historyFilterKeys[mode].every(key => {
+    const value = selected[key];
+    if (!value) return true;
+    if (key === 'from') return item.date >= value;
+    if (key === 'to') return item.date <= value;
+    return item[key] === value;
+  }));
+}
+function historyEmpty(product, mode) {
+  const filtered = Object.values(currentHistoryFilters(product.barcode, mode)).some(Boolean);
+  return `<div class="empty purchase-empty">${icon('search')}<h3>${filtered ? 'Mos yozuv topilmadi' : mode === 'purchase' ? 'Xarid tarixi yo‘q' : 'Ma’lumot topilmadi'}</h3><p>${filtered ? 'Filtrlarni o‘zgartiring yoki tozalang.' : 'Bu bo‘limda mahsulot uchun hali yozuv yo‘q.'}</p>${filtered ? '<button class="outline-button" data-history-reset>Filtrlarni tozalash</button>' : ''}</div>`;
+}
+function refreshHistory() {
+  const product = products.find(item => item.barcode === activeProduct);
+  if (!product || activePurchase) return;
+  detailContent.querySelector('.history-navigation').replaceWith(historyNavigation(activeHistoryMode));
+  detailContent.querySelector('.purchase-history').replaceWith(transactionHistory(product, activeHistoryMode));
+}
 function historyNavigation(mode) {
   const nav = document.createElement('nav');
   nav.className = 'history-navigation';
   nav.setAttribute('aria-label', 'Mahsulot tarixi bo‘limlari');
   nav.innerHTML = `<div class="history-tabs">${Object.entries(historyTitles).map(([key, title]) => `<button data-history-mode="${key}" ${historyModes[key] ? '' : 'disabled'} ${key === mode ? 'aria-current="page"' : ''}>${title}</button>`).join('')}</div>
     <button class="history-picker" id="history-picker" aria-haspopup="dialog" aria-controls="history-mode-sheet" aria-expanded="false" aria-label="Tarix bo‘limi: ${historyTitles[mode]}"><span><small>Mahsulot tarixi</small><strong>${historyTitles[mode]}</strong></span><span aria-hidden="true">⌄</span></button>`;
+  const selected = currentHistoryFilters(activeProduct, mode);
+  const active = Object.entries(selected).filter(([key, value]) => historyFilterKeys[mode].includes(key) && value);
+  const filterButton = document.createElement('button');
+  filterButton.id = 'history-filter-trigger'; filterButton.className = 'outline-button history-filter-trigger';
+  filterButton.setAttribute('aria-label', active.length ? `Tarix filtri, ${active.length} ta faol` : 'Tarix filtri');
+  filterButton.setAttribute('aria-haspopup', 'dialog'); filterButton.setAttribute('aria-controls', 'history-filter-sheet');
+  filterButton.setAttribute('aria-expanded', 'false');
+  filterButton.innerHTML = `${icon('filter')}<span class="history-filter-text">Filtr</span>${active.length ? `<span class="history-filter-count">${active.length}</span>` : ''}`;
+  nav.append(filterButton);
+  if (active.length) {
+    const chips = document.createElement('div'); chips.className = 'filter-chips history-filter-chips';
+    chips.setAttribute('aria-label', 'Tarixning faol filtrlari');
+    active.forEach(([key, value]) => {
+      const button = document.createElement('button'); button.className = 'filter-chip'; button.dataset.historyRemove = key;
+      const label = `${historyFilterLabels[key]}: ${key === 'from' || key === 'to' ? dateLabel(value) : value}`;
+      button.textContent = `${label} ×`; button.setAttribute('aria-label', `${label} filtrini olib tashlash`); chips.append(button);
+    });
+    const reset = document.createElement('button'); reset.className = 'history-clear'; reset.dataset.historyReset = ''; reset.textContent = 'Tozalash'; chips.append(reset);
+    nav.append(chips);
+  }
   return nav;
 }
 function transactionHistory(product, mode) {
   if (mode === 'purchase') return purchaseHistory(product);
   const config = historyModes[mode];
-  const rows = config.rows.filter(item => item.product === product.barcode);
+  const rows = historyRows(product, mode);
   const section = document.createElement('section');
   section.className = 'purchase-history';
   section.setAttribute('aria-labelledby', 'purchase-title');
-  section.innerHTML = `<div class="section-heading"><h2 id="purchase-title">${config.title}</h2><span>${rows.length} ta yozuv</span></div>${config.note ? `<p class="history-notice">${config.note}</p>` : ''}`;
+  section.innerHTML = `<div class="section-heading"><h2 id="purchase-title">${config.title}</h2><span role="status" aria-live="polite">${rows.length} ta yozuv</span></div>${config.note ? `<p class="history-notice">${config.note}</p>` : ''}`;
   if (!rows.length) {
-    section.innerHTML += `<div class="empty purchase-empty">${icon('box')}<h3>Ma’lumot topilmadi</h3><p>Bu mahsulotning “${config.title}” bo‘limida hali yozuv yo‘q.</p></div>`;
+    section.innerHTML += historyEmpty(product, mode);
     return section;
   }
   const cards = document.createElement('div');
@@ -351,7 +402,7 @@ function transactionHistory(product, mode) {
   totals.setAttribute('aria-label', 'Valyuta bo‘yicha yakunlar');
   [...new Set(rows.map(item => item.currency))].forEach(currency => {
     const block = document.createElement('section'); block.className = 'purchase-total';
-    block.innerHTML = `<h3>Jami <span class="currency">${currency}</span></h3><dl></dl>`;
+    block.innerHTML = `<h3>${Object.values(currentHistoryFilters(product.barcode, mode)).some(Boolean) ? 'Filtrlangan jami' : 'Jami'} <span class="currency">${currency}</span></h3><dl></dl>`;
     block.querySelector('dl').append(...config.totals(rows.filter(item => item.currency === currency)).map(([label, value]) => field(label, format(value))));
     totals.append(block);
   });
@@ -362,13 +413,13 @@ function purchaseLink(product, purchase) {
   return `#product=${product.barcode}&purchase=${purchase.id}`;
 }
 function purchaseHistory(product) {
-  const rows = purchases.filter(item => item.product === product.barcode);
+  const rows = historyRows(product, 'purchase');
   const section = document.createElement('section');
   section.className = 'purchase-history';
   section.setAttribute('aria-labelledby', 'purchase-title');
-  section.innerHTML = `<div class="section-heading"><h2 id="purchase-title">Sotib olish</h2><span>${rows.length} ta kirim</span></div>`;
+  section.innerHTML = `<div class="section-heading"><h2 id="purchase-title">Sotib olish</h2><span role="status" aria-live="polite">${rows.length} ta kirim</span></div>`;
   if (!rows.length) {
-    section.innerHTML += `<div class="empty purchase-empty">${icon('box')}<h3>Xarid tarixi yo‘q</h3><p>Bu mahsulot uchun hali kirim yozuvlari mavjud emas.</p></div>`;
+    section.innerHTML += historyEmpty(product, 'purchase');
     return section;
   }
   const cards = document.createElement('div');
@@ -397,7 +448,7 @@ function purchaseHistory(product) {
     const sale = group.reduce((sum, item) => sum + item.quantity * item.sale, 0);
     const block = document.createElement('section');
     block.className = 'purchase-total';
-    block.innerHTML = `<h3>Jami <span class="currency">${currency}</span></h3><dl></dl>`;
+    block.innerHTML = `<h3>${Object.values(currentHistoryFilters(product.barcode, 'purchase')).some(Boolean) ? 'Filtrlangan jami' : 'Jami'} <span class="currency">${currency}</span></h3><dl></dl>`;
     block.querySelector('dl').append(field('Kirish summasi', format(cost)), field('Sotish qiymati', format(sale)), field('Farq', format(sale - cost)));
     totals.append(block);
   });
@@ -481,6 +532,7 @@ function navigate(view, stockStatus) {
 function syncRoute() {
   returning = false;
   if (historySheet.open) historySheet.close();
+  if (historyFilterSheet.open) historyFilterSheet.close();
   const code = new URLSearchParams(location.hash.slice(1)).get('product');
   const product = products.find(item => item.barcode === code);
   if (product) {
@@ -587,6 +639,111 @@ historySheet.addEventListener('click', event => {
   if (event.target !== historySheet) return;
   const rect = historySheet.getBoundingClientRect();
   if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) historySheet.close();
+});
+const historyFilterSheet = document.getElementById('history-filter-sheet');
+const historyFilterBody = document.getElementById('history-filter-body');
+const historyFilterChoices = document.getElementById('history-filter-choices');
+const historyFilterSearch = document.getElementById('history-filter-search');
+const historyFilterForm = document.getElementById('history-filter-form');
+let historyDraft = {};
+let historyChoosing = null;
+let historyFilterOverflow = '';
+function historyOptions(key) {
+  if (key === 'currency') return ['UZS', 'USD'];
+  if (key === 'type') return activeHistoryMode === 'purchase' ? ['Zakup orqali', 'Zayavka orqali'] : ['Oflayn', 'Onlayn'];
+  return [...new Set(historyModes[activeHistoryMode].rows.map(row => row[key]).filter(Boolean))];
+}
+function showHistoryFilterFields(focusKey) {
+  historyChoosing = null;
+  document.getElementById('history-filter-title').textContent = 'Tarix filtri';
+  document.getElementById('history-filter-back').hidden = true;
+  historyFilterBody.hidden = false; historyFilterChoices.hidden = true;
+  document.getElementById('history-filter-footer').hidden = false;
+  document.getElementById('history-filter-error').textContent = '';
+  historyFilterBody.replaceChildren();
+  const note = document.createElement('p'); note.className = 'choice-note';
+  note.textContent = activeHistoryMode === 'gross' ? 'Yalpi daromad barcha omborlar bo‘yicha. Bu bo‘limda ombor filtri qo‘llanmaydi.' : 'Filtrlar faqat tarix yozuvlariga qo‘llanadi.';
+  historyFilterBody.append(note);
+  historyFilterKeys[activeHistoryMode].filter(key => key !== 'from' && key !== 'to').forEach(key => {
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'filter-field'; button.dataset.historyField = key;
+    const label = document.createElement('span'); label.className = 'filter-label'; label.textContent = historyFilterLabels[key];
+    const value = document.createElement('strong'); value.textContent = historyDraft[key] || 'Barchasi';
+    const arrow = document.createElement('span'); arrow.className = 'field-arrow'; arrow.textContent = '›'; arrow.setAttribute('aria-hidden', 'true');
+    button.append(label, value, arrow); button.addEventListener('click', () => showHistoryFilterChoices(key)); historyFilterBody.append(button);
+  });
+  const dates = document.createElement('div'); dates.className = 'history-date-fields';
+  ['from', 'to'].forEach(key => {
+    const label = document.createElement('label'); const text = document.createElement('span'); text.textContent = historyFilterLabels[key];
+    const input = document.createElement('input'); input.type = 'date'; input.name = key; input.id = `history-date-${key}`; input.value = historyDraft[key] || '';
+    input.setAttribute('aria-describedby', 'history-filter-error');
+    input.addEventListener('input', () => { historyDraft[key] = input.value; document.getElementById('history-filter-error').textContent = ''; });
+    label.append(text, input); dates.append(label);
+  });
+  historyFilterBody.append(dates);
+  if (focusKey) historyFilterBody.querySelector(`[data-history-field="${focusKey}"]`)?.focus({preventScroll:true});
+}
+function renderHistoryFilterChoices() {
+  const list = document.getElementById('history-filter-option-list'); list.replaceChildren();
+  const query = historyFilterSearch.value.trim().toLocaleLowerCase('uz');
+  const options = ['', ...historyOptions(historyChoosing)].filter(value => (value || 'Barchasi').toLocaleLowerCase('uz').includes(query));
+  options.forEach(value => {
+    const label = document.createElement('label'); label.className = 'filter-option';
+    const input = document.createElement('input'); input.type = 'radio'; input.name = 'history-choice'; input.value = value; input.checked = (historyDraft[historyChoosing] || '') === value;
+    const text = document.createElement('span'); text.textContent = value || 'Barchasi';
+    input.addEventListener('click', () => { const key = historyChoosing; historyDraft[key] = value; showHistoryFilterFields(key); });
+    label.append(input, text); list.append(label);
+  });
+  document.getElementById('history-filter-no-options').hidden = options.length > 0;
+}
+function showHistoryFilterChoices(key) {
+  historyChoosing = key;
+  document.getElementById('history-filter-title').textContent = historyFilterLabels[key];
+  document.getElementById('history-filter-back').hidden = false;
+  historyFilterBody.hidden = true; historyFilterChoices.hidden = false;
+  document.getElementById('history-filter-footer').hidden = true;
+  historyFilterSearch.value = '';
+  document.getElementById('history-filter-search-wrap').hidden = !['supplier', 'buyer'].includes(key);
+  renderHistoryFilterChoices();
+  document.querySelector('#history-filter-option-list input:checked')?.focus({preventScroll:true});
+}
+historyFilterSearch.addEventListener('input', renderHistoryFilterChoices);
+document.getElementById('history-filter-back').addEventListener('click', () => showHistoryFilterFields(historyChoosing));
+document.getElementById('history-filter-close').addEventListener('click', () => historyFilterSheet.close());
+document.getElementById('history-filter-reset').addEventListener('click', () => { historyDraft = {}; showHistoryFilterFields(); });
+historyFilterForm.addEventListener('submit', event => {
+  event.preventDefault();
+  if (historyChoosing) return;
+  if (historyDraft.from && historyDraft.to && historyDraft.from > historyDraft.to) {
+    document.getElementById('history-filter-error').textContent = 'Boshlanish sanasi tugash sanasidan keyin bo‘lmasin.';
+    document.getElementById('history-date-to').focus(); return;
+  }
+  historyFilterState.set(historyFilterKey(), {...historyDraft});
+  refreshHistory(); historyFilterSheet.close();
+});
+historyFilterSheet.addEventListener('close', () => {
+  document.body.style.overflow = historyFilterOverflow;
+  const trigger = document.getElementById('history-filter-trigger');
+  trigger?.setAttribute('aria-expanded', 'false');
+  if (trigger?.getClientRects().length) trigger.focus({preventScroll:true});
+});
+historyFilterSheet.addEventListener('cancel', event => { if (historyChoosing) { event.preventDefault(); showHistoryFilterFields(historyChoosing); } });
+historyFilterSheet.addEventListener('click', event => {
+  if (event.target !== historyFilterSheet) return;
+  const rect = historyFilterSheet.getBoundingClientRect();
+  if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) historyFilterSheet.close();
+});
+document.addEventListener('click', event => {
+  if (event.target.closest('#history-filter-trigger')) {
+    historyDraft = {...currentHistoryFilters()}; showHistoryFilterFields();
+    historyFilterOverflow = document.body.style.overflow; document.body.style.overflow = 'hidden';
+    historyFilterSheet.showModal(); document.getElementById('history-filter-trigger').setAttribute('aria-expanded', 'true');
+  }
+  const remove = event.target.closest('[data-history-remove]');
+  if (remove) {
+    const next = {...currentHistoryFilters()}; delete next[remove.dataset.historyRemove]; historyFilterState.set(historyFilterKey(), next);
+  } else if (event.target.closest('[data-history-reset]')) historyFilterState.delete(historyFilterKey());
+  else return;
+  refreshHistory(); document.getElementById('history-filter-trigger')?.focus({preventScroll:true});
 });
 detailBack.addEventListener('click', goBack);
 window.addEventListener('popstate', syncRoute);
