@@ -214,7 +214,7 @@ a.product-link{display:inline-block}
 :where(button,a[href],summary,input,select,textarea,[role="button"],.filter-option,.search){transition:scale 100ms ease-out,filter 100ms ease-out,background-color 140ms ease-out,border-color 140ms ease-out}
 :where(button,a[href],summary,input,select,textarea,[role="button"],.filter-option):not(:disabled):not([aria-disabled="true"]):active{scale:.97;filter:brightness(.94)}
 .filter-option:has(input:active) input:active,.search input:active{scale:1;filter:none}
-.product-metadata[open] .detail-fields{animation:metadata-enter 180ms ease-out}
+.disclosure-moving{overflow:hidden}
 @keyframes metadata-enter{from{opacity:.35;translate:0 -6px}to{opacity:1;translate:0 0}}
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{transition:none!important;animation:none!important}
@@ -302,3 +302,45 @@ svg.ui-chevron,svg.ui-direction{width:var(--icon-small);height:var(--icon-small)
 .invoice-label-button{min-height:var(--target-size);border-radius:var(--radius-control)}
 @media(min-width:761px){.toolbar .search,.toolbar .outline-button{border-radius:var(--radius-badge)}}
 @media(max-width:760px){.pending-actions .mobile-more{width:var(--control-height)}.history-navigation{gap:8px}}
+
+/* Native dialog transitions retain the top layer for the exit motion while
+   close events, focus restoration and navigation keep their normal timing. */
+:root{--motion-fast:150ms;--motion-panel:240ms;--motion-exit:180ms;--motion-ease:cubic-bezier(.2,.75,.25,1)}
+@supports (transition-behavior:allow-discrete){
+  dialog:is(.drawer,.filter-sheet,.output-dialog){
+    opacity:0;translate:0 20px;flex-direction:column;
+    transition:opacity var(--motion-exit) ease-out,translate var(--motion-exit) var(--motion-ease),display var(--motion-exit) allow-discrete,overlay var(--motion-exit) allow-discrete;
+  }
+  dialog.output-dialog{gap:12px}
+  dialog.drawer-left{translate:-100% 0}
+  dialog.drawer-right{translate:100% 0}
+  dialog:is(.drawer,.filter-sheet,.output-dialog)[open]{opacity:1;translate:0 0;animation:none;transition-duration:var(--motion-panel)}
+  dialog:is(.drawer,.filter-sheet,.output-dialog):not([open]){pointer-events:none}
+  dialog:is(.drawer,.filter-sheet,.output-dialog)::backdrop{
+    background:transparent;
+    transition:background-color var(--motion-exit) ease-out,display var(--motion-exit) allow-discrete,overlay var(--motion-exit) allow-discrete;
+  }
+  dialog:is(.drawer,.filter-sheet,.output-dialog)[open]::backdrop{background:#20122d66;transition-duration:var(--motion-panel)}
+  @starting-style{
+    dialog:is(.filter-sheet,.output-dialog)[open]{opacity:0;translate:0 20px}
+    dialog.drawer-left[open]{opacity:0;translate:-100% 0}
+    dialog.drawer-right[open]{opacity:0;translate:100% 0}
+    dialog:is(.drawer,.filter-sheet,.output-dialog)[open]::backdrop{background:transparent}
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  dialog,dialog::backdrop{transition:none!important;animation:none!important}
+}
+
+/* Press the whole card, without scaling text fields or showing a lasting frame. */
+:where(.stock-card,.attention-card,.home-action){transition:scale 100ms ease-out,background-color var(--motion-fast) ease-out}
+.stock-card:has(a:active){scale:.99}
+.stock-card a:active,input:not([type="checkbox"]):not([type="radio"]):active,select:active,textarea:active{scale:1;filter:none}
+.history-filter-error:not(:empty){animation:metadata-enter var(--motion-fast) ease-out}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition:none!important;animation:none!important}
+  .stock-card:has(a:active){scale:1}
+}
+/* Avoid sideways layout shifts when a modal locks the page scrollbar. */
+html{scrollbar-gutter:stable}
+summary{user-select:none;-webkit-user-select:none}

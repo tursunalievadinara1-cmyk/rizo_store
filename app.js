@@ -9,15 +9,16 @@ document.addEventListener('pointerdown', () => {
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const motionAnimations = new Set();
 const elementMotion = new WeakMap();
-function animateUI(element, frames, duration = 220) {
+function animateUI(element, frames, duration = 220, delay = 0) {
   if (!element || reducedMotion.matches || !element.animate) return;
   elementMotion.get(element)?.cancel();
-  const animation = element.animate(frames, {duration, easing: 'cubic-bezier(.2,.75,.25,1)'});
+  const animation = element.animate(frames, {duration, delay, easing: 'cubic-bezier(.2,.75,.25,1)'});
   elementMotion.set(element, animation);
   motionAnimations.add(animation);
   const cleanup = () => motionAnimations.delete(animation);
   animation.addEventListener('finish', cleanup, {once:true});
   animation.addEventListener('cancel', cleanup, {once:true});
+  return animation;
 }
 function enterContent(element, direction = 1, distance = 24) {
   animateUI(element, [
@@ -32,9 +33,49 @@ reducedMotion.addEventListener('change', () => {
 document.addEventListener('click', event => {
   const control = event.target.closest('button, a[href], summary, input, select, textarea, [role="button"], .filter-option');
   if (!control || control.matches(':disabled, [aria-disabled="true"]')) return;
-  const surface = control.closest('.filter-option, .search') || control;
-  animateUI(surface, [{scale: '.97', filter: 'brightness(.94)'}, {scale: '1', filter: 'brightness(1)'}], 160);
+  if (control.matches('input:not([type=checkbox]):not([type=radio]),select,textarea')) return;
+  const surface = control.closest('.filter-option, .stock-card, .attention-card, .home-action') || control;
+  animateUI(surface, [{scale: surface.matches('.stock-card,.attention-card,.home-action') ? '.99' : '.97', filter: 'brightness(.94)'}, {scale: '1', filter: 'brightness(1)'}], 160);
 }, {capture:true});
+// A small entrance for deliberate result changes; typing stays visually stable.
+function animateResults(root) {
+  if (reducedMotion.matches || document.activeElement?.matches('input[type="search"]')) return;
+  const candidates = [...root.querySelectorAll('.stock-card,.purchase-card,.empty,tbody')];
+  candidates.filter(element => {
+    const rect = element.getBoundingClientRect();
+    return rect.width && rect.height && rect.bottom > 0 && rect.top < innerHeight;
+  }).slice(0,8).forEach((element,index) => animateUI(element,
+    [{opacity:.55,translate:'0 6px'},{opacity:1,translate:'0 0'}],180,Math.min(index*18,72)));
+}
+
+// Keep native details semantics, including Enter/Space, while animating both ways.
+const disclosureMotion = new WeakMap();
+document.addEventListener('click', event => {
+  const summary = event.target.closest('summary');
+  const details = summary?.parentElement;
+  if (!details?.matches('.product-metadata,.barcode-search')) return;
+  event.preventDefault();
+  const previous = disclosureMotion.get(details);
+  const expanded = !(previous ? previous.expanded : details.open);
+  const from = details.getBoundingClientRect().height;
+  const state = {expanded,animation:null};
+  disclosureMotion.set(details,state);
+  previous?.animation?.cancel();
+  const finish = () => {
+    if (disclosureMotion.get(details) !== state) return;
+    details.open = expanded;
+    details.classList.remove('disclosure-moving');
+    disclosureMotion.delete(details);
+  };
+  if (reducedMotion.matches || !details.animate) { finish(); return; }
+  details.open = expanded;
+  const to = details.getBoundingClientRect().height;
+  details.open = true;
+  details.classList.add('disclosure-moving');
+  state.animation = animateUI(details,[{height:`${from}px`},{height:`${to}px`}],200);
+  state.animation.finished.then(finish,finish);
+});
+
 // Isolated frontend fixture data. No staging or backend requests.
 const products = [
   {name:'LED chiroq 12W',barcode:'DEMO-001',category:'Yoritish',quantity:5,unit:'dona',currency:'UZS',price:8000,branch:'Namuna filial',status:'low'},
@@ -157,7 +198,7 @@ function activeStockFilters(){const defaults=emptyFilters();return Object.entrie
 function selectedStockColumns(){return stockColumns.map(key=>stockColumnDefs.find(([id])=>id===key));}
 function stockTableMarkup(rows,links=true){const columns=selectedStockColumns();return `<table><thead><tr>${columns.map(([key,label])=>sortHeader(key,label,'report',links)).join('')}</tr></thead><tbody>${rows.map((p,i)=>`<tr>${columns.map(([key,,value])=>{const v=value(p,links?(stockPageNumber-1)*stockPageSize+i:i);return `<td class="${typeof v==='number'?'numeric':''}">${key==='name'&&links?`<a class="product-link" href="#product=${p.barcode}${!filters.group?`&lot=${p.id}`:''}" data-product="${p.barcode}">${v}</a>`:typeof v==='number'?format(v):v}</td>`;}).join('')}</tr>`).join('')}</tbody></table>`;}
 function stockTotalsMarkup(rows){return [...new Set(rows.map(p=>p.currency))].map(currency=>{const list=rows.filter(p=>p.currency===currency);return `<section class="purchase-total"><h3>Jami <span class="currency">${currency}</span></h3><dl><div><dt>Kirish qiymati</dt><dd>${format(list.reduce((n,p)=>n+p.quantity*p.price,0))}</dd></div><div><dt>Sotish qiymati</dt><dd>${format(list.reduce((n,p)=>n+p.quantity*p.salePrice,0))}</dd></div></dl></section>`;}).join('');}
-function render(){document.querySelector('.barcode-search summary .barcode-label').textContent=barcodeSearch.value.trim()?`Shtrix-kod · ${barcodeSearch.value.trim()}`:'Shtrix-kod bo‘yicha qidirish';if(stockTab==='reserved'){renderReserved();return;}renderStock();}
+function render(){document.querySelector('.barcode-search summary .barcode-label').textContent=barcodeSearch.value.trim()?`Shtrix-kod · ${barcodeSearch.value.trim()}`:'Shtrix-kod bo‘yicha qidirish';if(stockTab==='reserved')renderReserved();else renderStock();animateResults(document.getElementById('main'));}
 function renderStock(){
   document.querySelector('#empty h2').textContent='Mahsulot topilmadi';
   const rows=filteredStockRows();const pages=Math.max(1,Math.ceil(rows.length/stockPageSize));stockPageNumber=Math.min(Math.max(stockPageNumber,1),pages);const visible=rows.slice((stockPageNumber-1)*stockPageSize,stockPageNumber*stockPageSize);
@@ -208,7 +249,7 @@ function openStockDialog(dialog){stockDialogOverflow=document.body.style.overflo
 [stockColumnsSheet,stockPrintPreview].forEach(dialog=>{dialog.querySelector('[data-close-stock-dialog]').addEventListener('click',()=>dialog.close());dialog.addEventListener('close',()=>{document.body.style.overflow=stockDialogOverflow;});dialog.addEventListener('click',event=>{if(event.target!==dialog)return;const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close();});});
 function currentColumnDefs(){if(columnContext==='history')return historyColumnDefinitions(activeHistoryMode);return stockTab==='reserved'?reservedColumnDefs:stockColumnDefs;}
 function currentColumns(){if(columnContext==='history')return selectedHistoryColumns(activeHistoryMode);return stockTab==='reserved'?reservedColumns:stockColumns;}
-function renderStockColumnChoices(){const list=document.getElementById('stock-columns-list');list.replaceChildren();stockColumnDraft.forEach((item,index)=>{const line=document.createElement('div');line.className='column-choice';const label=document.createElement('label');const input=document.createElement('input');input.type='checkbox';input.checked=item.visible;input.disabled=item.key==='name'||item.key==='Mahsulot nomi';input.addEventListener('change',()=>item.visible=input.checked);const name=document.createElement('span');name.textContent=currentColumnDefs().find(([key])=>key===item.key)[1];label.append(input,name);line.append(label);[['arrowUp',-1,'Yuqoriga'],['arrowDown',1,'Pastga']].forEach(([symbol,offset,title])=>{const button=document.createElement('button');button.className='icon-button';button.innerHTML=icon(symbol);button.setAttribute('aria-label',`${name.textContent}: ${title}`);button.disabled=index+offset<0||index+offset>=stockColumnDraft.length;button.addEventListener('click',()=>{[stockColumnDraft[index],stockColumnDraft[index+offset]]=[stockColumnDraft[index+offset],stockColumnDraft[index]];renderStockColumnChoices();list.children[index+offset]?.querySelector('input')?.focus({preventScroll:true});});line.append(button);});list.append(line);});}
+function renderStockColumnChoices(){const list=document.getElementById('stock-columns-list');list.replaceChildren();stockColumnDraft.forEach((item,index)=>{const line=document.createElement('div');line.className='column-choice';const label=document.createElement('label');const input=document.createElement('input');input.type='checkbox';input.checked=item.visible;input.disabled=item.key==='name'||item.key==='Mahsulot nomi';input.addEventListener('change',()=>item.visible=input.checked);const name=document.createElement('span');name.textContent=currentColumnDefs().find(([key])=>key===item.key)[1];label.append(input,name);line.append(label);[['arrowUp',-1,'Yuqoriga'],['arrowDown',1,'Pastga']].forEach(([symbol,offset,title])=>{const button=document.createElement('button');button.className='icon-button';button.innerHTML=icon(symbol);button.setAttribute('aria-label',`${name.textContent}: ${title}`);button.disabled=index+offset<0||index+offset>=stockColumnDraft.length;button.addEventListener('click',()=>{[stockColumnDraft[index],stockColumnDraft[index+offset]]=[stockColumnDraft[index+offset],stockColumnDraft[index]];renderStockColumnChoices();const moved=list.children[index+offset];moved?.querySelector('input')?.focus({preventScroll:true});animateUI(moved,[{translate:`0 ${-offset*12}px`,opacity:.6},{translate:'0 0',opacity:1}],180);});line.append(button);});list.append(line);});}
 document.getElementById('stock-columns-reset').addEventListener('click',()=>{stockColumnDraft=currentColumnDefs().map(([key])=>({key,visible:true}));renderStockColumnChoices();});
 document.getElementById('stock-columns-apply').addEventListener('click',()=>{const selected=stockColumnDraft.filter(c=>c.visible).map(c=>c.key);if(columnContext==='history'){historyColumnProfiles[activeHistoryMode]=selected;try{localStorage.setItem('rizo-history-columns',JSON.stringify(historyColumnProfiles));}catch{}refreshHistory();stockColumnsSheet.close();return;}if(stockTab==='reserved')reservedColumns=selected;else stockColumns=selected;try{localStorage.setItem(stockTab==='reserved'?'rizo-reserved-columns-v2':'rizo-stock-columns-v2',JSON.stringify(selected));}catch{}render();stockColumnsSheet.close();});
 function csvCell(value){if(typeof value==='number')return String(value);let text=String(value??'');if(/^[\s]*[=+@-]/.test(text))text=`'${text}`;return `"${text.replaceAll('"','""')}"`;}
@@ -397,6 +438,7 @@ function refreshHistory() {
   if (!product || activePurchase) return;
   detailContent.querySelector('.history-navigation').replaceWith(historyNavigation(activeHistoryMode));
   detailContent.querySelector('.purchase-history').replaceWith(transactionHistory(product, activeHistoryMode));
+  animateResults(detailContent);
 }
 function historyNavigation(mode) {
   const nav = document.createElement('nav');
@@ -892,6 +934,7 @@ function renderInvoices() {
   });
   const badge = document.getElementById('invoice-filter-count'); badge.hidden = !active.length; badge.textContent = active.length;
   invoiceFilterTrigger.setAttribute('aria-label', active.length ? `Faktura filtri, ${active.length} ta faol` : 'Faktura filtri');
+  animateResults(document.getElementById('invoice-report'));
 }
 function showInvoice(item) {
   if (activeInvoice === item.id) return;
