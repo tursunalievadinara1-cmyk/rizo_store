@@ -367,3 +367,20 @@ summary{user-select:none;-webkit-user-select:none}
 
 .detail-content:has(.label-layout){max-width:1240px}
 .label-preview .label-a4,.label-preview-grid .label-a4{aspect-ratio:var(--label-ratio);min-height:0;height:auto;gap:4px}.label-preview .label-a4 .label-product-name,.label-preview-grid .label-a4 .label-product-name{font-size:11px}.label-preview .label-a4 .label-price b,.label-preview-grid .label-a4 .label-price b{font-size:23px}
+
+/* Purchase goods shares the report controls and motion tokens. */
+.purchase-subtabs{display:flex;max-width:100%;overflow:auto}
+.goods-meta{color:var(--muted);font-size:var(--text-caption);margin:8px 0 14px;overflow-wrap:anywhere}
+.goods-card-values{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 0 14px}
+.goods-card-values>div:last-child{grid-column:1/-1}
+.goods-card-values dt{font-size:var(--text-caption);color:var(--muted);margin-bottom:4px}
+.goods-card-values dd{font-size:18px;font-weight:800;margin:0;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.goods-card-values small{font-size:var(--text-caption);font-weight:400;color:var(--muted)}
+.goods-member{display:flex;margin-top:10px;white-space:normal}
+#goods-filter-form{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+#goods-report .invoice-card-footer>span:first-child{min-width:0;overflow-wrap:anywhere}
+@media(max-width:760px){.purchase-subtabs{width:100%;margin:12px 0}.purchase-subtabs>button{flex:1;white-space:normal;min-height:44px;padding:8px}#goods-totals .purchase-total dl{grid-template-columns:1fr}#goods-totals .purchase-total dl>div{display:flex;justify-content:space-between;gap:16px}#goods-totals dt{max-width:55%}#goods-totals dd{text-align:right;font-size:15px}#goods-report .pending-actions>[data-goods-action="export"],#goods-report .pending-actions>[data-goods-action="print"]{display:none}}
+
+@media(max-width:760px){.purchase-subtabs{display:none}#invoice-report>.invoice-caption,#goods-report>.invoice-caption{display:none}.purchase-picker{width:100%;justify-content:space-between;margin-bottom:16px}.purchase-picker strong{color:var(--heading)}}
+
+@media screen{#goods-table td[data-column="name"],#stock-print-content td[data-column="name"]{min-width:240px;max-width:320px;white-space:normal;overflow-wrap:anywhere}#goods-table td[data-column="supplier"],#goods-table td[data-column="warehouse"]{max-width:240px;white-space:normal;overflow-wrap:anywhere}}

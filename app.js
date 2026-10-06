@@ -191,7 +191,7 @@ function sortReportRows(rows,definitions,selection,history=false){
 }
 function sortHeader(key,label,context,interactive=true){
   if(!interactive||['rowNumber','№'].includes(key))return `<th scope="col">${label}</th>`;
-  const selected=context==='invoice'?invoiceSort:context==='report'?reportSorts[stockTab]:historySorts[activeHistoryMode];const current=selected?.key===key;
+  const selected=context==='goods'?goodsSort:context==='invoice'?invoiceSort:context==='report'?reportSorts[stockTab]:historySorts[activeHistoryMode];const current=selected?.key===key;
   return `<th scope="col" aria-sort="${current?(selected.direction==='asc'?'ascending':'descending'):'none'}"><button class="table-sort" data-sort-key="${key}" data-sort-context="${context}" aria-label="${label} bo‘yicha saralash">${label}<span aria-hidden="true">${icon(current?(selected.direction==='asc'?'arrowUp':'arrowDown'):'sort')}</span></button></th>`;
 }
 function activeStockFilters(){const defaults=emptyFilters();return Object.entries(filters).filter(([key,value])=>!['target','rate'].includes(key)&&value!==defaults[key]);}
@@ -247,11 +247,11 @@ try{Object.assign(historyColumnProfiles,JSON.parse(localStorage.getItem('rizo-hi
 function reportActionData(){if(stockTab==='reserved')return {title:'Zaxiralangan mahsulotlar',rows:filteredReservedRows(),columns:reservedColumns.map(key=>reservedColumnDefs.find(([id])=>id===key)),table:reservedTableMarkup,totals:reservedTotalsMarkup};return {title:'Qoldiq',rows:filteredStockRows(),columns:selectedStockColumns(),table:stockTableMarkup,totals:stockTotalsMarkup};}
 function openStockDialog(dialog){if(dialog===stockPrintPreview){document.querySelector('#stock-print-preview>.choice-note').textContent='Tanlangan ustunlar va filtrga mos barcha qatorlar. Qog‘oz yo‘nalishi: albom.';document.getElementById('label-print-page').textContent='';}stockDialogOverflow=document.body.style.overflow;document.body.style.overflow='hidden';dialog.showModal();}
 [stockColumnsSheet,stockPrintPreview].forEach(dialog=>{dialog.querySelector('[data-close-stock-dialog]').addEventListener('click',()=>dialog.close());dialog.addEventListener('close',()=>{document.body.style.overflow=stockDialogOverflow;});dialog.addEventListener('click',event=>{if(event.target!==dialog)return;const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close();});});
-function currentColumnDefs(){if(columnContext==='invoice')return invoiceColumnDefs;if(columnContext==='history')return historyColumnDefinitions(activeHistoryMode);return stockTab==='reserved'?reservedColumnDefs:stockColumnDefs;}
-function currentColumns(){if(columnContext==='invoice')return invoiceColumns;if(columnContext==='history')return selectedHistoryColumns(activeHistoryMode);return stockTab==='reserved'?reservedColumns:stockColumns;}
+function currentColumnDefs(){if(columnContext==='goods')return goodsColumnDefs;if(columnContext==='invoice')return invoiceColumnDefs;if(columnContext==='history')return historyColumnDefinitions(activeHistoryMode);return stockTab==='reserved'?reservedColumnDefs:stockColumnDefs;}
+function currentColumns(){if(columnContext==='goods')return goodsColumns;if(columnContext==='invoice')return invoiceColumns;if(columnContext==='history')return selectedHistoryColumns(activeHistoryMode);return stockTab==='reserved'?reservedColumns:stockColumns;}
 function renderStockColumnChoices(){const list=document.getElementById('stock-columns-list');list.replaceChildren();stockColumnDraft.forEach((item,index)=>{const line=document.createElement('div');line.className='column-choice';const label=document.createElement('label');const input=document.createElement('input');input.type='checkbox';input.checked=item.visible;input.disabled=item.key==='invoiceId'||item.key==='name'||item.key==='Mahsulot nomi';input.addEventListener('change',()=>item.visible=input.checked);const name=document.createElement('span');name.textContent=currentColumnDefs().find(([key])=>key===item.key)[1];label.append(input,name);line.append(label);[['arrowUp',-1,'Yuqoriga'],['arrowDown',1,'Pastga']].forEach(([symbol,offset,title])=>{const button=document.createElement('button');button.className='icon-button';button.innerHTML=icon(symbol);button.setAttribute('aria-label',`${name.textContent}: ${title}`);button.disabled=index+offset<0||index+offset>=stockColumnDraft.length;button.addEventListener('click',()=>{[stockColumnDraft[index],stockColumnDraft[index+offset]]=[stockColumnDraft[index+offset],stockColumnDraft[index]];renderStockColumnChoices();const moved=list.children[index+offset];moved?.querySelector('input')?.focus({preventScroll:true});animateUI(moved,[{translate:`0 ${-offset*12}px`,opacity:.6},{translate:'0 0',opacity:1}],180);});line.append(button);});list.append(line);});}
 document.getElementById('stock-columns-reset').addEventListener('click',()=>{stockColumnDraft=currentColumnDefs().map(([key])=>({key,visible:true}));renderStockColumnChoices();});
-document.getElementById('stock-columns-apply').addEventListener('click',()=>{const selected=stockColumnDraft.filter(c=>c.visible).map(c=>c.key);if(columnContext==='invoice'){invoiceColumns=selected;try{localStorage.setItem('rizo-invoice-columns-v1',JSON.stringify(selected));}catch{}renderInvoices();stockColumnsSheet.close();return;}if(columnContext==='history'){historyColumnProfiles[activeHistoryMode]=selected;try{localStorage.setItem('rizo-history-columns',JSON.stringify(historyColumnProfiles));}catch{}refreshHistory();stockColumnsSheet.close();return;}if(stockTab==='reserved')reservedColumns=selected;else stockColumns=selected;try{localStorage.setItem(stockTab==='reserved'?'rizo-reserved-columns-v2':'rizo-stock-columns-v2',JSON.stringify(selected));}catch{}render();stockColumnsSheet.close();});
+document.getElementById('stock-columns-apply').addEventListener('click',()=>{const selected=stockColumnDraft.filter(c=>c.visible).map(c=>c.key);if(columnContext==='goods'){goodsColumns=selected;try{localStorage.setItem('rizo-goods-columns-v1',JSON.stringify(selected));}catch{}renderGoods();stockColumnsSheet.close();return;}if(columnContext==='invoice'){invoiceColumns=selected;try{localStorage.setItem('rizo-invoice-columns-v1',JSON.stringify(selected));}catch{}renderInvoices();stockColumnsSheet.close();return;}if(columnContext==='history'){historyColumnProfiles[activeHistoryMode]=selected;try{localStorage.setItem('rizo-history-columns',JSON.stringify(historyColumnProfiles));}catch{}refreshHistory();stockColumnsSheet.close();return;}if(stockTab==='reserved')reservedColumns=selected;else stockColumns=selected;try{localStorage.setItem(stockTab==='reserved'?'rizo-reserved-columns-v2':'rizo-stock-columns-v2',JSON.stringify(selected));}catch{}render();stockColumnsSheet.close();});
 function csvCell(value){if(typeof value==='number')return String(value);let text=String(value??'');if(/^[\s]*[=+@-]/.test(text))text=`'${text}`;return `"${text.replaceAll('"','""')}"`;}
 function reportCSV(data){return '\uFEFF'+[data.columns.map(([,label])=>csvCell(label)).join(','),...data.rows.map((row,index)=>data.columns.map(([, ,value])=>csvCell(value(row,index))).join(','))].join('\r\n');}
 function performStockAction(action){
@@ -266,9 +266,9 @@ document.getElementById('stock-print-confirm').addEventListener('click',()=>wind
 document.addEventListener('click',event=>{const action=event.target.closest('[data-stock-action]');if(action){performStockAction(action.dataset.stockAction);return;}const page=event.target.closest('[data-stock-page]');if(page){stockPageNumber=Number(page.dataset.stockPage);render();document.getElementById('reports-title').focus({preventScroll:true});window.scrollTo(0,0);}});
 
 const sortSheet=document.getElementById('sort-sheet');let sortOverflow='';
-function currentSort(){if(sortContext==='invoice')return invoiceSort;return sortContext==='history'?(historySorts[activeHistoryMode]||{key:'',direction:'desc'}):reportSorts[stockTab];}
-function setSort(key,direction){const selected={key,direction};if(sortContext==='invoice'){invoiceSort=selected;resetInvoicePage();}else if(sortContext==='history'){historySorts[activeHistoryMode]=selected;refreshHistory();}else{reportSorts[stockTab]=selected;resetStockPage();}}
-function renderSortOptions(){const selected=currentSort(),defs=sortContext==='invoice'?invoiceColumnDefs:sortContext==='history'?historyColumnDefinitions(activeHistoryMode):(stockTab==='reserved'?reservedColumnDefs:stockColumnDefs);const list=document.getElementById('sort-options');list.replaceChildren();[['','Asl tartib'],...defs.filter(([key])=>!['rowNumber','№','labels'].includes(key))].forEach(([key,label])=>{const button=document.createElement('button');button.className='report-choice';button.textContent=label;button.setAttribute('aria-pressed',String(selected.key===key));if(selected.key===key)button.insertAdjacentHTML('beforeend','<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>');button.addEventListener('click',()=>{setSort(key,currentSort().direction);sortSheet.close();});list.append(button);});document.querySelectorAll('[data-sort-direction]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.sortDirection===selected.direction)));}
+function currentSort(){if(sortContext==='goods')return goodsSort;if(sortContext==='invoice')return invoiceSort;return sortContext==='history'?(historySorts[activeHistoryMode]||{key:'',direction:'desc'}):reportSorts[stockTab];}
+function setSort(key,direction){const selected={key,direction};if(sortContext==='goods'){goodsSort=selected;resetGoodsPage();return;}if(sortContext==='invoice'){invoiceSort=selected;resetInvoicePage();}else if(sortContext==='history'){historySorts[activeHistoryMode]=selected;refreshHistory();}else{reportSorts[stockTab]=selected;resetStockPage();}}
+function renderSortOptions(){const selected=currentSort(),defs=sortContext==='goods'?goodsColumnDefs:sortContext==='invoice'?invoiceColumnDefs:sortContext==='history'?historyColumnDefinitions(activeHistoryMode):(stockTab==='reserved'?reservedColumnDefs:stockColumnDefs);const list=document.getElementById('sort-options');list.replaceChildren();[['','Asl tartib'],...defs.filter(([key])=>!['rowNumber','№','labels'].includes(key))].forEach(([key,label])=>{const button=document.createElement('button');button.className='report-choice';button.textContent=label;button.setAttribute('aria-pressed',String(selected.key===key));if(selected.key===key)button.insertAdjacentHTML('beforeend','<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>');button.addEventListener('click',()=>{setSort(key,currentSort().direction);sortSheet.close();});list.append(button);});document.querySelectorAll('[data-sort-direction]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.sortDirection===selected.direction)));}
 function openSortSheet(context){sortContext=context;renderSortOptions();sortOverflow=document.body.style.overflow;document.body.style.overflow='hidden';sortSheet.showModal();}
 document.getElementById('sort-close').addEventListener('click',()=>sortSheet.close());sortSheet.addEventListener('close',()=>{document.body.style.overflow=sortOverflow;});sortSheet.addEventListener('click',event=>{if(event.target!==sortSheet)return;const r=sortSheet.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)sortSheet.close();});
 document.addEventListener('click',event=>{const open=event.target.closest('[data-sort-open]');if(open){openSortSheet(open.dataset.sortOpen);return;}const direction=event.target.closest('[data-sort-direction]');if(direction){setSort(currentSort().key,direction.dataset.sortDirection);renderSortOptions();return;}const header=event.target.closest('[data-sort-key]');if(header){sortContext=header.dataset.sortContext;const selected=currentSort();setSort(header.dataset.sortKey,selected.key===header.dataset.sortKey&&selected.direction==='desc'?'asc':'desc');}});
@@ -278,7 +278,7 @@ const reportSections = [['Qoldiqlar', 'reports'], ['Sotib olish', 'invoices'], [
 function updateReportNavigation(view) {
   document.querySelectorAll('.report-tabs').forEach(nav => {
     nav.innerHTML = reportSections.map(([title, route]) => route
-      ? `<button data-route="${route}" ${(view==='reserved'?'reports':view) === route ? 'class="selected" aria-current="page"' : ''}>${title}</button>`
+      ? `<button data-route="${route}" ${(view==='reserved'?'reports':view==='purchase-goods'?'invoices':view) === route ? 'class="selected" aria-current="page"' : ''}>${title}</button>`
       : `<span aria-disabled="true">${title}</span>`).join('');
   });
 }
@@ -288,21 +288,21 @@ let reportChoiceOverflow = '';
 document.querySelectorAll('[data-choice-sheet]').forEach(trigger => {
   trigger.addEventListener('click', () => {
     reportChoiceTrigger = trigger;
-    const isReports = trigger.dataset.choiceSheet === 'reports';
-    document.getElementById('report-choice-title').textContent = isReports ? 'Hisobotlar' : 'Qo‘shimcha amallar';
-    document.getElementById('report-choice-note').textContent = isReports
-      ? 'Qoldiqlar va hisob-fakturalar faol.' : 'Filtrga mos barcha qatorlar uchun.';
+    const isReports = trigger.dataset.choiceSheet === 'reports',isPurchase=trigger.dataset.choiceSheet==='purchase';
+    document.getElementById('report-choice-title').textContent = isPurchase?'Sotib olish':isReports ? 'Hisobotlar' : 'Qo‘shimcha amallar';
+    document.getElementById('report-choice-note').textContent = isPurchase?'Ko‘rinishni tanlang.':isReports
+      ? 'Qoldiqlar va sotib olish hisobotlari faol.' : 'Filtrga mos barcha qatorlar uchun.';
     const list = document.getElementById('report-choices');
     list.replaceChildren();
-    (isReports ? reportSections : [['Saralash','sort'], ['Eksport · CSV','export'], ...(activeView!=='reserved'?[['Chop etish','print']]:[]), ['Jadval ustunlari','columns'], ['Yangilash','refresh']]).forEach(([label, route]) => {
+    (isPurchase?[['Hisob-fakturalar','invoices'],['Mahsulotlar bo‘yicha','purchase-goods']]:isReports ? reportSections : [['Saralash','sort'], ['Eksport · CSV','export'], ...(activeView!=='reserved'?[['Chop etish','print']]:[]), ['Jadval ustunlari','columns'], ['Yangilash','refresh']]).forEach(([label, route]) => {
       const button = document.createElement('button'); button.className = 'report-choice';
       const name = document.createElement('span'); name.textContent = label; button.append(name);
       if (route) {
-        if (isReports && route === (activeView==='reserved'?'reports':activeView)) {
+        if ((isPurchase&&route===activeView) || (isReports && route === (activeView==='reserved'?'reports':activeView==='purchase-goods'?'invoices':activeView))) {
           button.setAttribute('aria-current', 'page');
           button.insertAdjacentHTML('beforeend', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>');
         }
-        button.addEventListener('click', () => { reportChoiceSheet.close(); if(isReports) navigate(route); else requestAnimationFrame(()=>activeView==='invoices'?performInvoiceAction(route):performStockAction(route)); });
+        button.addEventListener('click', () => { reportChoiceSheet.close(); if(isReports||isPurchase) navigate(route); else requestAnimationFrame(()=>activeView==='purchase-goods'?performGoodsAction(route):activeView==='invoices'?performInvoiceAction(route):performStockAction(route)); });
       } else {
         button.disabled = true;
         const note = document.createElement('small'); note.textContent = 'Hali ulanmagan'; button.append(note);
@@ -334,6 +334,8 @@ const detailBack = document.getElementById('detail-back');
 const dashboard = document.getElementById('dashboard');
 const reportsPage = document.getElementById('main');
 const invoicePage = document.getElementById('invoice-report');
+let activeGoods = null;
+const goodsPage=document.getElementById('goods-report');
 let activeInvoice = null;
 let activeReservation = null;
 let activeView = null;
@@ -343,8 +345,8 @@ let activePurchase = null;
 let activeHistoryMode = 'purchase';
 let purchaseReturn = null;
 let detailOrigin = 'reports';
-const viewPositions = { home: 0, reports: 0, invoices: 0, reserved: 0 };
-const viewFocus = { home: null, reports: null, invoices: null, reserved: null };
+const viewPositions = { home: 0, reports: 0, invoices: 0, reserved: 0, 'purchase-goods': 0 };
+const viewFocus = { home: null, reports: null, invoices: null, reserved: null, 'purchase-goods': null };
 let returning = false;
 history.scrollRestoration = 'manual';
 
@@ -603,7 +605,7 @@ function showProduct(product, purchase = null, mode = 'purchase') {
 }
 
 function rememberView() {
-  if (!activeView || activeProduct || activeInvoice || activeReservation) return;
+  if (!activeView || activeProduct || activeInvoice || activeReservation || activeGoods) return;
   viewPositions[activeView] = window.scrollY;
   viewFocus[activeView] = document.activeElement;
 }
@@ -615,7 +617,7 @@ function navigate(view, stockStatus) {
     render();
     viewPositions.reports = 0;
   }
-  if (activeView === view && !activeProduct && !activeInvoice && !activeReservation) {
+  if (activeView === view && !activeProduct && !activeInvoice && !activeReservation && !activeGoods) {
     if (stockStatus !== undefined) {
       window.scrollTo(0, 0);
       document.getElementById('reports-title').focus({preventScroll: true});
@@ -627,19 +629,27 @@ function navigate(view, stockStatus) {
 }
 function syncRoute() {
   const wasLabels = Boolean(activeLabels);
-  const before = {view: activeView, product: activeProduct, entry: activePurchase, mode: activeHistoryMode, invoice: activeInvoice, reservation: activeReservation};
+  const before = {goods:activeGoods, view: activeView, product: activeProduct, entry: activePurchase, mode: activeHistoryMode, invoice: activeInvoice, reservation: activeReservation};
   applyRoute();
-  const changed = wasLabels !== Boolean(activeLabels) || before.reservation !== activeReservation || before.invoice !== activeInvoice || before.view !== activeView || before.product !== activeProduct || before.entry !== activePurchase || before.mode !== activeHistoryMode;
+  const changed = before.goods !== activeGoods || wasLabels !== Boolean(activeLabels) || before.reservation !== activeReservation || before.invoice !== activeInvoice || before.view !== activeView || before.product !== activeProduct || before.entry !== activePurchase || before.mode !== activeHistoryMode;
   if (!changed) return;
   // Cancel outgoing motion so fast navigation never leaves a stale effect.
   motionAnimations.forEach(animation => animation.cancel());
   const historyOnly = activeProduct && before.product === activeProduct && !before.entry && !activePurchase && before.mode !== activeHistoryMode;
-  const backwards = (wasLabels && !activeLabels) || (before.reservation && !activeReservation) || (before.invoice && !activeInvoice) || (before.entry && !activePurchase) || (before.product && !activeProduct) || (!before.product && before.view === 'reports' && activeView === 'home');
-  const target = activeReservation ? detailContent : activeInvoice ? detailContent : activeProduct ? (historyOnly ? detailContent.querySelector('.purchase-history') : detailContent) : activeView === 'home' ? dashboard : activeView === 'invoices' ? invoicePage : reportsPage;
+  const backwards = (before.goods && !activeGoods) || (wasLabels && !activeLabels) || (before.reservation && !activeReservation) || (before.invoice && !activeInvoice) || (before.entry && !activePurchase) || (before.product && !activeProduct) || (!before.product && before.view === 'reports' && activeView === 'home');
+  const target = activeGoods ? detailContent : activeReservation ? detailContent : activeInvoice ? detailContent : activeProduct ? (historyOnly ? detailContent.querySelector('.purchase-history') : detailContent) : activeView === 'home' ? dashboard : activeView === 'invoices' ? invoicePage : activeView==='purchase-goods'?goodsPage:reportsPage;
   enterContent(target, backwards ? -1 : 1, historyOnly ? 12 : 24);
 }
 function applyRoute() {
   returning = false;
+  if(goodsFilterSheet.open)goodsFilterSheet.close();
+  const goodsId=new URLSearchParams(location.hash.slice(1)).get('goods');
+  const goodsItem=goodsId && [...filteredGoods(),...goodsRows,...groupGoods(goodsRows)].find(row=>row.id===goodsId);
+  if(goodsItem){showGoods(goodsItem);return;}
+  if(goodsId)history.replaceState(null,'','#purchase-goods');
+  const leavingGoods=Boolean(activeGoods);
+  activeGoods=null;
+  if(location.hash!=='#purchase-goods')goodsPage.hidden=true;
   const labelParams=new URLSearchParams(location.hash.slice(1));
   const leavingLabels=activeLabels && !(labelParams.get('invoice')===activeLabels && labelParams.get('labels')==='1');
   if(leavingLabels)activeLabels=null;
@@ -674,10 +684,10 @@ function applyRoute() {
     showProduct(product, entry || null, mode); return;
   }
   if (code) history.replaceState(null, '', '#reports');
-  const view = location.hash === '#reserved' ? 'reserved' : location.hash === '#invoices' ? 'invoices' : location.hash === '#reports' ? 'reports' : 'home';
-  const fromDetail = Boolean(activeProduct || activeInvoice || activeReservation);
+  const view = location.hash === '#purchase-goods' ? 'purchase-goods' : location.hash === '#reserved' ? 'reserved' : location.hash === '#invoices' ? 'invoices' : location.hash === '#reports' ? 'reports' : 'home';
+  const fromDetail = leavingGoods || Boolean(activeProduct || activeInvoice || activeReservation || activeGoods);
   if (!fromDetail && activeView === view) return;
-  rememberView();
+  if(!leavingGoods)rememberView();
   activeProduct = null;
   activeStockLot = null;
   activeInvoice = null;
@@ -690,10 +700,12 @@ function applyRoute() {
   dashboard.hidden = view !== 'home';
   reportsPage.hidden = !['reports','reserved'].includes(view);
   invoicePage.hidden = view !== 'invoices';
+  goodsPage.hidden=view!=='purchase-goods';
+  if(view==='purchase-goods')renderGoods();
   updateReportNavigation(view);
-  document.title = `${view === 'home' ? 'Bosh sahifa' : view === 'invoices' ? 'Sotib olish' : view==='reserved'?'Zaxiralangan mahsulotlar':'Qoldiq'} · Rizo Store`;
+  document.title = `${view === 'home' ? 'Bosh sahifa' : ['invoices','purchase-goods'].includes(view) ? 'Sotib olish' : view==='reserved'?'Zaxiralangan mahsulotlar':'Qoldiq'} · Rizo Store`;
   document.querySelectorAll('.nav-item[data-route]').forEach(button => {
-    if (button.dataset.route === (['invoices','reserved'].includes(view) ? 'reports' : view)) button.setAttribute('aria-current', 'page');
+    if (button.dataset.route === (['invoices','purchase-goods','reserved'].includes(view) ? 'reports' : view)) button.setAttribute('aria-current', 'page');
     else button.removeAttribute('aria-current');
   });
   window.scrollTo(0, viewPositions[view]);
@@ -701,10 +713,11 @@ function applyRoute() {
   if (fromDetail && focus?.isConnected && focus !== document.body && !focus.closest('[hidden]')) {
     focus.focus({preventScroll: true});
   } else {
-    document.getElementById(view === 'home' ? 'home-title' : view === 'invoices' ? 'invoice-report-title' : 'reports-title').focus({preventScroll: true});
+    document.getElementById(view === 'home' ? 'home-title' : view==='purchase-goods'?'goods-report-title':view === 'invoices' ? 'invoice-report-title' : 'reports-title').focus({preventScroll: true});
   }
 }
 function goBack() {
+  if(activeGoods){if(returning)return;returning=true;if(history.state?.rizoGoods)history.back();else{history.replaceState(null,'','#purchase-goods');syncRoute();}return;}
   if(activeLabels){if(returning)return;returning=true;if(history.state?.rizoLabels)history.back();else{history.replaceState(null,'',`#invoice=${activeLabels}`);syncRoute();}return;}
   if(activeReservation){if(returning)return;returning=true;if(history.state?.rizoReservation)history.back();else{history.replaceState(null,'','#reserved');syncRoute();}return;}
   if (activeInvoice) {
@@ -733,6 +746,8 @@ document.addEventListener('click', event => {
     navigate(route.dataset.route, route.dataset.stockStatus);
     return;
   }
+  const goodsLink=event.target.closest('a[data-goods]');
+  if(goodsLink){event.preventDefault();history.pushState({rizoGoods:true},'',goodsLink.getAttribute('href'));syncRoute();return;}
   const reservedLink=event.target.closest('a[data-reservation]');
   if(reservedLink){event.preventDefault();history.pushState({rizoReservation:true},'',reservedLink.getAttribute('href'));syncRoute();return;}
   const invoiceLink = event.target.closest('a[data-invoice]');
@@ -1065,6 +1080,138 @@ invoiceFilterSheet.addEventListener('close',()=>{document.body.style.overflow=in
 invoiceFilterSheet.addEventListener('cancel',event=>{if(invoiceChoosing){event.preventDefault();showInvoiceFilterFields(invoiceChoosing);}});
 invoiceFilterSheet.addEventListener('click',event=>{if(event.target!==invoiceFilterSheet)return;const rect=invoiceFilterSheet.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)invoiceFilterSheet.close();});
 renderInvoices();
+
+// Synthetic purchase lines; no Store records are copied into this prototype.
+const goodsRows=Array.from({length:16},(_,index)=>{
+  const p=products[index%products.length],quantity=index===5?750:20+index*3,remaining=index===3?0:Math.max(0,quantity-7);
+  return {...p,id:`XAR-${String(index+1).padStart(3,'0')}`,date:`2026-10-${String(6-index%6).padStart(2,'0')}`,time:'10:30',quantity,remaining,wholesale:p.price*1.05,narxFarqi:p.salePrice,vat:index===4?'Ha':'Yo‘q',entryTotal:quantity*p.price,remainingTotal:remaining*p.salePrice,payment:['Naqd pul','Qarzga','Bank to‘lov'][index%3],batch:`NAM-PARTIYA-${index+1}`,expiry:index%3?'':'2027-12-31'};
+});
+// Repeated purchases exercise grouping; fixtures also include separate currencies.
+goodsRows[6]={...goodsRows[0],id:'XAR-007',date:'2026-10-04',quantity:10,remaining:6,entryTotal:10*goodsRows[0].price,remainingTotal:6*goodsRows[0].narxFarqi};
+const goodsColumnDefs=[['rowNumber','№',(_p,i)=>i+1],['date','Yaratilgan sana',p=>`${dateLabel(p.date)} · ${p.time}`],['name','Mahsulot nomlari',p=>p.name],['variant','Variatsiya',p=>p.variant||'—'],['barcode','Shtrix-kod',p=>p.barcode],['category','Turkum',p=>p.category||'—'],['quantity','Kirish miqdori',p=>p.quantity],['remaining','Qoldiq miqdori',p=>p.remaining],['unit','O‘lchov birligi',p=>p.unit],['currency','Valyuta',p=>p.currency],['price','Kirish narxi',p=>p.price],['wholesale','Ulgurji narx',p=>p.wholesale],['narxFarqi','Narx farqi',p=>p.narxFarqi],['vat','QQSni qo‘llash',p=>p.vat],['entryTotal','Yakuniy kirish narxi',p=>p.entryTotal],['remainingTotal','Qoldiq summasi',p=>p.remainingTotal],['expiry','Yaroqlilik muddati',p=>p.expiry?dateLabel(p.expiry):'—'],['branch','Filial',p=>p.branch],['warehouse','Ombor',p=>p.warehouse],['supplier','Ta’minotchi',p=>p.supplier],['payment','To‘lov tartibi',p=>p.payment],['batch','Ishlab chiqarish raqami',p=>p.batch||'—']];
+let goodsColumns=goodsColumnDefs.map(([key])=>key),goodsPageNumber=1,goodsSort={key:'',direction:'desc'};
+try{const saved=JSON.parse(localStorage.getItem('rizo-goods-columns-v1'));if(Array.isArray(saved)&&saved.includes('name'))goodsColumns=[...new Set(saved.filter(key=>goodsColumnDefs.some(([id])=>key===id)))];}catch{}
+const goodsFilterLabels={branch:'Filial',supplier:'Ta’minotchi',warehouse:'Ombor',unit:'O‘lchov birligi',currency:'Valyuta',payment:'To‘lov tartibi',category:'Turkum',from:'Sanadan boshlab',to:'Sanagacha',group:'Guruhlash'};
+let goodsFilters={},goodsDraft={},goodsChoosing=null,goodsOverflow='';
+const goodsSearch=document.getElementById('goods-search'),goodsBarcode=document.getElementById('goods-barcode'),goodsFilterSheet=document.getElementById('goods-filter-sheet'),goodsFilterBody=document.getElementById('goods-filter-body'),goodsFilterChoices=document.getElementById('goods-filter-choices'),goodsOptionSearch=document.getElementById('goods-option-search'),goodsFilterTrigger=document.getElementById('goods-filter-trigger');
+function groupGoods(rows){
+  const groups=new Map();
+  rows.forEach(row=>{
+    // Never collapse currencies, variants, prices, suppliers or batch metadata.
+    const key=JSON.stringify(['barcode','name','variant','category','unit','currency','price','wholesale','narxFarqi','vat','expiry','branch','warehouse','supplier','payment','batch'].map(key=>row[key]));
+    if(!groups.has(key))groups.set(key,{...row,members:[row],id:`G-${row.id}`});
+    else{const group=groups.get(key);group.members.push(row);['quantity','remaining','entryTotal','remainingTotal'].forEach(key=>group[key]+=row[key]);if(`${row.date}T${row.time}`>`${group.date}T${group.time}`){group.date=row.date;group.time=row.time;}}
+  });return [...groups.values()];
+}
+function filteredGoods(){
+  const query=goodsSearch.value.trim().toLocaleLowerCase('uz'),barcode=goodsBarcode.value.trim().toLocaleLowerCase('uz');
+  const rows=goodsRows.filter(p=>p.name.toLocaleLowerCase('uz').includes(query)&&p.barcode.toLocaleLowerCase('uz').includes(barcode)&&Object.entries(goodsFilters).every(([key,value])=>!value||key==='group'||(key==='from'?p.date>=value:key==='to'?p.date<=value:p[key]===value)));
+  return sortReportRows(goodsFilters.group?groupGoods(rows):rows,goodsColumnDefs,goodsSort);
+}
+function goodsTotals(rows){return ['UZS','USD'].map(currency=>{const matching=rows.filter(p=>p.currency===currency);const cost=matching.reduce((sum,p)=>sum+p.entryTotal,0),sale=matching.reduce((sum,p)=>sum+p.quantity*p.narxFarqi,0);return {currency,cost,sale,difference:sale-cost};});}
+function goodsTotalsMarkup(rows){return goodsTotals(rows).map(t=>`<section class="purchase-total"><h3>${t.currency}</h3><dl><div><dt>Cheklarning umumiy miqdori</dt><dd>${format(t.cost)}</dd></div><div><dt>Savdolarning umumiy miqdori</dt><dd>${format(t.sale)}</dd></div><div><dt>Umumiy farq</dt><dd>${format(t.difference)}</dd></div></dl></section>`).join('');}
+function goodsValue(value){return typeof value==='number'?format(value):value??'—';}
+function goodsTableMarkup(rows,links=true,offset=0){const columns=goodsColumns.map(key=>goodsColumnDefs.find(([id])=>key===id));return `<table><thead><tr>${columns.map(([key,label])=>sortHeader(key,label,'goods',links)).join('')}</tr></thead><tbody>${rows.map((p,i)=>`<tr>${columns.map(([key,,value])=>`<td data-column="${key}" class="${typeof value(p,i)==='number'?'numeric':''}">${key==='name'&&links?`<a class="product-link" data-goods href="#goods=${p.id}">${p.name}</a>`:goodsValue(value(p,i+offset))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;}
+function resetGoodsPage(){goodsPageNumber=1;renderGoods();}
+function renderGoods(){
+  const rows=filteredGoods(),pages=Math.max(1,Math.ceil(rows.length/10));goodsPageNumber=Math.max(1,Math.min(goodsPageNumber,pages));const offset=(goodsPageNumber-1)*10,visible=rows.slice(offset,offset+10);
+  document.getElementById('goods-count').textContent=`${rows.length} ta ${goodsFilters.group?'guruh':'xarid yozuvi'}`;
+  document.getElementById('goods-cards').innerHTML=visible.map(p=>`<article class="stock-card goods-card"><div class="card-head"><h2><a class="product-link" data-goods href="#goods=${p.id}">${p.name}</a></h2><span class="currency">${p.currency}</span></div><p class="goods-meta">${dateLabel(p.date)} · ${p.variant&&p.variant!=='—'?p.variant:p.barcode}${p.members?.length>1?` · ${p.members.length} ta yozuv`:''}</p><dl class="goods-card-values"><div><dt>Kirish</dt><dd>${format(p.quantity)} <small>${p.unit}</small></dd></div><div><dt>Qoldiq</dt><dd>${format(p.remaining)} <small>${p.unit}</small></dd></div><div><dt>Yakuniy kirish narxi</dt><dd>${format(p.entryTotal)} <small>${p.currency}</small></dd></div></dl><div class="invoice-card-footer"><span>${p.supplier}</span><span class="invoice-detail-hint" aria-hidden="true">Tafsilot ${icon('chevronRight')}</span></div></article>`).join('');
+  document.getElementById('goods-table').innerHTML=goodsTableMarkup(visible,true,offset);
+  ['goods-cards','goods-table'].forEach(id=>document.getElementById(id).hidden=!rows.length);document.getElementById('goods-empty').hidden=!!rows.length;
+  const pager=document.getElementById('goods-pagination');pager.hidden=pages<=1;pager.innerHTML=`<button class="outline-button" data-goods-page="${goodsPageNumber-1}" ${goodsPageNumber===1?'disabled':''} aria-label="Oldingi xarid sahifasi">${icon('chevronLeft')}</button><span>${goodsPageNumber} / ${pages}</span><button class="outline-button" data-goods-page="${goodsPageNumber+1}" ${goodsPageNumber===pages?'disabled':''} aria-label="Keyingi xarid sahifasi">${icon('chevronRight')}</button>`;
+  document.getElementById('goods-totals').innerHTML=goodsTotalsMarkup(rows);
+  const chips=document.getElementById('goods-filter-chips');chips.replaceChildren();const active=Object.entries(goodsFilters).filter(([,value])=>value);
+  active.forEach(([key,value])=>{const button=document.createElement('button');button.className='filter-chip';button.textContent=`${goodsFilterLabels[key]}: ${key==='group'?'Ha':['from','to'].includes(key)?dateLabel(value):value} ×`;button.setAttribute('aria-label',`${goodsFilterLabels[key]} filtrini olib tashlash`);button.addEventListener('click',()=>{delete goodsFilters[key];resetGoodsPage();goodsFilterTrigger.focus({preventScroll:true});});chips.append(button);});
+  const badge=document.getElementById('goods-filter-count');badge.hidden=!active.length;badge.textContent=active.length;animateResults(goodsPage);
+}
+function performGoodsAction(action){
+  if(action==='sort'){openSortSheet('goods');return;}
+  if(action==='refresh'){renderGoods();document.getElementById('report-announcement').textContent='Sinov xarid hisoboti yangilandi.';return;}
+  if(action==='columns'){columnContext='goods';document.querySelector('#stock-columns-sheet .choice-note').textContent='Desktop jadvali, eksport va chop etish uchun. Mahsulot nomi doim ko‘rinadi.';stockColumnDraft=[...goodsColumns,...goodsColumnDefs.map(([key])=>key).filter(key=>!goodsColumns.includes(key))].map(key=>({key,visible:goodsColumns.includes(key)}));renderStockColumnChoices();openStockDialog(stockColumnsSheet);return;}
+  const rows=filteredGoods(),columns=goodsColumns.map(key=>goodsColumnDefs.find(([id])=>id===key));
+  if(action==='export'){const url=URL.createObjectURL(new Blob([reportCSV({rows,columns})],{type:'text/csv;charset=utf-8;'}));const link=document.createElement('a');link.href=url;link.download='rizo-xarid-mahsulotlar.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);document.getElementById('report-announcement').textContent=`${rows.length} ta xarid yozuvi CSV faylga chiqarildi.`;}
+  if(action==='print'){const html=`<h1>Mahsulotlar orqali sotib olish</h1><p>Sinov ma’lumotlari · ${rows.length} ta qator</p>${rows.length?goodsTableMarkup(rows,false):'<p>Mahsulot topilmadi.</p>'}<div class="purchase-totals">${goodsTotalsMarkup(rows)}</div>`;document.getElementById('stock-print-content').innerHTML=html;document.getElementById('print-area').innerHTML=html;openStockDialog(stockPrintPreview);}
+}
+function showGoods(item){
+  if(activeGoods===item.id)return;rememberView();activeGoods=item.id;activeProduct=null;activeInvoice=null;activeReservation=null;activePurchase=null;
+  workspace.hidden=true;invoicePage.hidden=true;goodsPage.hidden=true;productPage.hidden=false;detailBack.setAttribute('aria-label','Xarid mahsulotlariga qaytish');document.getElementById('detail-page-label').textContent='Xarid mahsuloti';
+  const summary=document.createElement('section');summary.className='detail-summary';summary.innerHTML=`<div class="detail-kicker"><span>${dateLabel(item.date)} · ${item.time}</span><span class="currency">${item.currency}</span></div><h1 id="product-title" tabindex="-1">${item.name}</h1><p>${item.barcode}</p>`;
+  const info=document.createElement('section');info.className='detail-information';info.innerHTML='<h2>Xarid ma’lumotlari</h2><dl class="detail-fields"></dl>';info.querySelector('dl').append(...goodsColumnDefs.filter(([key])=>key!=='rowNumber').map(([,label,value])=>field(label,goodsValue(value(item)))));
+  detailContent.classList.add('is-purchase-detail');detailContent.replaceChildren(summary,info);
+  if(item.members?.length>1){const section=document.createElement('section');section.className='detail-information';section.innerHTML='<h2>Guruhdagi xaridlar</h2>';item.members.forEach(row=>{const a=document.createElement('a');a.className='goods-member outline-button';a.href=`#goods=${row.id}`;a.dataset.goods='';a.textContent=`${dateLabel(row.date)} · ${format(row.quantity)} ${row.unit} · ${format(row.entryTotal)} ${row.currency}`;section.append(a);});detailContent.append(section);}
+  document.title=`${item.name} · Xarid · Rizo Store`;window.scrollTo(0,0);summary.querySelector('h1').focus({preventScroll:true});
+}
+goodsBarcode.addEventListener('input',resetGoodsPage);
+document.addEventListener('click',event=>{const action=event.target.closest('[data-goods-action]');if(action){performGoodsAction(action.dataset.goodsAction);return;}const page=event.target.closest('[data-goods-page]');if(page){goodsPageNumber=Number(page.dataset.goodsPage);renderGoods();document.getElementById('goods-report-title').focus({preventScroll:true});window.scrollTo(0,0);}});
+
+function showGoodsFilterFields(focusKey) {
+  goodsChoosing = null;
+  document.getElementById('goods-filter-title').textContent = 'Xarid filtri';
+  document.getElementById('goods-filter-back').hidden = true;
+  goodsFilterBody.hidden = false; goodsFilterChoices.hidden = true;
+  document.getElementById('goods-filter-footer').hidden = false;
+  document.getElementById('goods-filter-error').textContent = '';
+  goodsFilterBody.replaceChildren();
+  Object.entries(goodsFilterLabels).filter(([key])=>!['from','to','group'].includes(key)).forEach(([key,label])=>{
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'filter-field'; button.dataset.goodsField = key;
+    const title = document.createElement('span'); title.className = 'filter-label'; title.textContent = label;
+    const value = document.createElement('strong'); value.textContent = goodsDraft[key] || 'Barchasi';
+    const arrow = document.createElement('span'); arrow.className = 'field-arrow'; arrow.innerHTML = icon('chevronRight'); arrow.setAttribute('aria-hidden','true');
+    button.append(title,value,arrow); button.addEventListener('click',()=>showGoodsChoices(key)); goodsFilterBody.append(button);
+  });
+  const dates = document.createElement('div'); dates.className = 'history-date-fields';
+  ['from','to'].forEach(key=>{
+    const label = document.createElement('label'); const name = document.createElement('span'); name.textContent = goodsFilterLabels[key];
+    const input = document.createElement('input'); input.type = 'date'; input.id = `goods-date-${key}`; input.value = goodsDraft[key] || ''; input.setAttribute('aria-describedby','goods-filter-error');
+    input.addEventListener('input',()=>{goodsDraft[key]=input.value;document.getElementById('goods-filter-error').textContent='';});label.append(name,input); dates.append(label);
+  });
+  goodsFilterBody.append(dates);
+  const grouping=document.createElement('label');grouping.className='filter-option';
+  const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=!!goodsDraft.group;checkbox.addEventListener('change',()=>goodsDraft.group=checkbox.checked);
+  grouping.append(checkbox,document.createTextNode('Guruhlash'));goodsFilterBody.append(grouping);
+  if (focusKey) goodsFilterBody.querySelector(`[data-goods-field="${focusKey}"]`)?.focus({preventScroll:true});
+  if (goodsFilterSheet.open) enterContent(goodsFilterBody,-1,12);
+}
+function renderGoodsChoices() {
+  const list = document.getElementById('goods-option-list'); list.replaceChildren();
+  const query = goodsOptionSearch.value.trim().toLocaleLowerCase('uz');
+  const values = ['',...new Set(goodsRows.map(item=>item[goodsChoosing]))].filter(value=>(value || 'Barchasi').toLocaleLowerCase('uz').includes(query));
+  values.forEach(value=>{
+    const label = document.createElement('label'); label.className = 'filter-option';
+    const input = document.createElement('input'); input.type = 'radio'; input.name = 'goods-choice'; input.value = value; input.checked = (goodsDraft[goodsChoosing] || '') === value;
+    const name = document.createElement('span'); name.textContent = value || 'Barchasi';
+    input.addEventListener('click',()=>{const key = goodsChoosing;goodsDraft[key]=value;showGoodsFilterFields(key);}); label.append(input,name); list.append(label);
+  });
+  document.getElementById('goods-no-options').hidden = !!values.length;
+}
+function showGoodsChoices(key) {
+  goodsChoosing = key; document.getElementById('goods-filter-title').textContent = goodsFilterLabels[key];
+  document.getElementById('goods-filter-back').hidden = false;
+  goodsFilterBody.hidden = true; goodsFilterChoices.hidden = false;
+  document.getElementById('goods-filter-footer').hidden = true;
+  goodsOptionSearch.value = ''; goodsOptionSearch.closest('label').hidden = !['supplier','warehouse','branch','category'].includes(key);
+  renderGoodsChoices(); document.querySelector('#goods-option-list input:checked')?.focus({preventScroll:true}); enterContent(goodsFilterChoices,1,12);
+}
+goodsSearch.addEventListener('input', resetGoodsPage);
+document.getElementById('goods-clear').addEventListener('click',()=>{goodsFilters={};goodsSearch.value='';goodsBarcode.value='';resetGoodsPage();goodsSearch.focus();});
+goodsFilterTrigger.addEventListener('click',()=>{
+  goodsDraft={...goodsFilters};showGoodsFilterFields();goodsOverflow=document.body.style.overflow;document.body.style.overflow='hidden';goodsFilterSheet.showModal();goodsFilterTrigger.setAttribute('aria-expanded','true');
+});
+goodsOptionSearch.addEventListener('input',renderGoodsChoices);
+document.getElementById('goods-filter-back').addEventListener('click',()=>showGoodsFilterFields(goodsChoosing));
+document.getElementById('goods-filter-close').addEventListener('click',()=>goodsFilterSheet.close());
+document.getElementById('goods-filter-reset').addEventListener('click',()=>{goodsDraft={};showGoodsFilterFields();});
+document.getElementById('goods-filter-form').addEventListener('submit',event=>{
+  event.preventDefault();if(goodsChoosing)return;
+  if(goodsDraft.from && goodsDraft.to && goodsDraft.from>goodsDraft.to){document.getElementById('goods-filter-error').textContent='Boshlanish sanasi tugash sanasidan keyin bo‘lmasin.';document.getElementById('goods-date-to').focus();return;}
+  goodsFilters={...goodsDraft};resetGoodsPage();goodsFilterSheet.close();
+});
+goodsFilterSheet.addEventListener('close',()=>{document.body.style.overflow=goodsOverflow;goodsFilterTrigger.setAttribute('aria-expanded','false');if(goodsFilterTrigger.getClientRects().length)goodsFilterTrigger.focus({preventScroll:true});});
+goodsFilterSheet.addEventListener('cancel',event=>{if(goodsChoosing){event.preventDefault();showGoodsFilterFields(goodsChoosing);}});
+goodsFilterSheet.addEventListener('click',event=>{if(event.target!==goodsFilterSheet)return;const rect=goodsFilterSheet.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)goodsFilterSheet.close();});
+
+renderGoods();
 
 // Reserved rows are isolated examples, not copies of live Store records.
 const reservations=[
