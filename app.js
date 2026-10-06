@@ -1,4 +1,11 @@
 'use strict';
+// Restored focus keeps keyboard navigation in place without marking a clicked card.
+document.addEventListener('keydown', event => {
+  if (event.key === 'Tab') document.documentElement.dataset.keyboardNavigation = 'true';
+}, {capture:true});
+document.addEventListener('pointerdown', () => {
+  delete document.documentElement.dataset.keyboardNavigation;
+}, {capture:true});
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const motionAnimations = new Set();
 const elementMotion = new WeakMap();
