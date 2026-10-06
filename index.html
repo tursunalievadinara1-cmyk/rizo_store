@@ -24,9 +24,9 @@
       <section class="home-section" aria-labelledby="actions-title">
         <h2 id="actions-title">Tezkor amallar</h2>
         <div class="home-actions">
-          <a class="home-action" href="#reports" data-route="reports" data-stock-status=""><span class="action-icon" data-icon="chart"></span><span><strong>Qoldiqlar</strong><small>Barcha mahsulotlar</small></span><span class="action-arrow" aria-hidden="true">›</span></a>
-          <a class="home-action" href="#reports" data-route="reports" data-stock-status="low"><span class="action-icon" data-icon="box"></span><span><strong>Kam qolgan</strong><small>Zaxirani tekshirish</small></span><span class="action-arrow" aria-hidden="true">›</span></a>
-          <a class="home-action" href="#reports" data-route="reports" data-stock-status="zero"><span class="action-icon" data-icon="box"></span><span><strong>Tugagan</strong><small>Qoldig‘i yo‘q mahsulotlar</small></span><span class="action-arrow" aria-hidden="true">›</span></a>
+          <a class="home-action" href="#reports" data-route="reports" data-stock-status=""><span class="action-icon" data-icon="chart"></span><span><strong>Qoldiqlar</strong><small>Barcha mahsulotlar</small></span><span class="action-arrow" data-icon="chevronRight" aria-hidden="true"></span></a>
+          <a class="home-action" href="#reports" data-route="reports" data-stock-status="low"><span class="action-icon" data-icon="box"></span><span><strong>Kam qolgan</strong><small>Zaxirani tekshirish</small></span><span class="action-arrow" data-icon="chevronRight" aria-hidden="true"></span></a>
+          <a class="home-action" href="#reports" data-route="reports" data-stock-status="zero"><span class="action-icon" data-icon="box"></span><span><strong>Tugagan</strong><small>Qoldig‘i yo‘q mahsulotlar</small></span><span class="action-arrow" data-icon="chevronRight" aria-hidden="true"></span></a>
         </div>
       </section>
       <section class="home-section" aria-labelledby="attention-title">
@@ -41,8 +41,8 @@
         <span class="selected" aria-current="page">Qoldiqlar</span><span>Sotib olish</span><span>Mahsulot bo‘yicha sotish</span><span>Qaytish</span><span>Yalpi daromad</span><span>Keshbek</span><span>Kassa</span>
       </nav>
       <nav class="sub-tabs stock-subtabs" aria-label="Qoldiqlar ichki bo‘limlari"><button data-route="reports">Qoldiq</button><button data-route="reserved">Zaxiralangan mahsulotlar</button></nav>
-      <button class="mobile-report-picker" data-choice-sheet="reports" aria-haspopup="dialog" aria-controls="report-choice-sheet" aria-expanded="false"><span data-icon="chart"></span><span>Hisobotlar <strong>Qoldiqlar</strong></span><span aria-hidden="true">⌄</span></button>
-      <button id="stock-sub-picker" class="mobile-stock-picker" aria-haspopup="dialog" aria-controls="stock-sub-sheet" aria-expanded="false"><strong>Qoldiq</strong><span aria-hidden="true">⌄</span></button>
+      <button class="mobile-report-picker" data-choice-sheet="reports" aria-haspopup="dialog" aria-controls="report-choice-sheet" aria-expanded="false"><span data-icon="chart"></span><span>Hisobotlar <strong>Qoldiqlar</strong></span><span data-icon="chevronDown" aria-hidden="true"></span></button>
+      <button id="stock-sub-picker" class="mobile-stock-picker" aria-haspopup="dialog" aria-controls="stock-sub-sheet" aria-expanded="false"><strong>Qoldiq</strong><span data-icon="chevronDown" aria-hidden="true"></span></button>
       <div class="toolbar">
         <label class="search"><span data-icon="search"></span><input id="search" type="search" placeholder="Qidirish" aria-label="Mahsulot nomi yoki shtrix-kodi bo‘yicha qidirish" autocomplete="off"></label>
         <div class="pending-actions" aria-label="Ro‘yxat amallari">
@@ -52,7 +52,7 @@
           <button class="icon-button mobile-more" data-choice-sheet="actions" aria-label="Qo‘shimcha amallar" aria-haspopup="dialog" aria-controls="report-choice-sheet" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button>
         </div>
       </div>
-      <details class="barcode-search"><summary>Shtrix-kod bo‘yicha qidirish</summary><label class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5v14M6 5v14M10 5v14M12 5v14M16 5v14M20 5v14"/></svg><input id="barcode-search" type="search" placeholder="Shtrix-kod" aria-label="Shtrix-kod bo‘yicha qidirish" autocomplete="off"></label></details>
+      <details class="barcode-search"><summary><span class="barcode-label">Shtrix-kod bo‘yicha qidirish</span><svg class="ui-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 9 7 7 7-7"/></svg></summary><label class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5v14M6 5v14M10 5v14M12 5v14M16 5v14M20 5v14"/></svg><input id="barcode-search" type="search" placeholder="Shtrix-kod" aria-label="Shtrix-kod bo‘yicha qidirish" autocomplete="off"></label></details>
       <div id="filter-chips" class="filter-chips" aria-label="Faol filtrlar"></div>
       <div class="list-meta"><span id="result-count" role="status" aria-live="polite"></span><button class="text-button" data-stock-action="refresh">Yangilash</button></div><p id="stock-context-note" class="choice-note" hidden></p>
       <div class="table-wrap" tabindex="0" role="region" aria-label="Qoldiqlar jadvali, gorizontal aylantirish mumkin">
@@ -67,7 +67,7 @@
     <div class="title-row"><h1 id="invoice-report-title" tabindex="-1">Sotib olish</h1><span class="sample-badge">Namuna</span></div>
     <nav class="report-tabs" aria-label="Hisobotlar"></nav>
     <div class="sub-tabs"><span class="selected">Hisob-fakturalar</span><span aria-disabled="true">Mahsulotlar bo‘yicha</span></div>
-    <button class="mobile-report-picker" data-choice-sheet="reports" aria-haspopup="dialog" aria-controls="report-choice-sheet" aria-expanded="false"><span data-icon="chart"></span><span>Hisobotlar <strong>Sotib olish</strong></span><span aria-hidden="true">⌄</span></button>
+    <button class="mobile-report-picker" data-choice-sheet="reports" aria-haspopup="dialog" aria-controls="report-choice-sheet" aria-expanded="false"><span data-icon="chart"></span><span>Hisobotlar <strong>Sotib olish</strong></span><span data-icon="chevronDown" aria-hidden="true"></span></button>
     <p class="invoice-caption">Hisob-fakturalar</p>
     <div class="toolbar">
       <label class="search"><span data-icon="search"></span><input id="invoice-search" type="search" placeholder="Qidirish" aria-label="Faktura yoki ta’minotchini qidirish" autocomplete="off"></label>
@@ -75,7 +75,7 @@
         <button id="invoice-filter-trigger" class="outline-button" aria-label="Faktura filtri" aria-haspopup="dialog" aria-controls="invoice-filter-sheet" aria-expanded="false"><span data-icon="filter"></span>Filtr<span id="invoice-filter-count" class="history-filter-count" hidden></span></button>
         <button class="outline-button" disabled title="Hali ulanmagan"><span data-icon="export"></span>Eksport</button>
         <button class="outline-button" disabled title="Hali ulanmagan"><span data-icon="print"></span>Chop etish</button>
-        <button class="icon-button mobile-more" data-choice-sheet="actions" aria-label="Qo‘shimcha amallar" aria-haspopup="dialog" aria-controls="report-choice-sheet"><span aria-hidden="true">•••</span></button>
+        <button class="icon-button mobile-more" data-choice-sheet="actions" aria-label="Qo‘shimcha amallar" aria-haspopup="dialog" aria-controls="report-choice-sheet"><span data-icon="more" aria-hidden="true"></span></button>
       </div>
     </div>
     <div id="invoice-filter-chips" class="filter-chips" aria-label="Faol faktura filtrlari"></div>
@@ -147,6 +147,6 @@
   <div id="print-area" hidden></div><div id="report-announcement" class="sr-only" role="status" aria-live="polite"></div>
   <dialog id="stock-sub-sheet" class="filter-sheet" aria-labelledby="stock-sub-title"><div class="sheet-handle" aria-hidden="true"></div><header class="sheet-header"><h2 id="stock-sub-title">Qoldiqlar</h2><button class="icon-button" aria-label="Qoldiqlar tanlovini yopish" data-stock-sub-close><span data-icon="close"></span></button></header><div class="report-choices"><button class="report-choice" data-route="reports"><span>Qoldiq</span></button><button class="report-choice" data-route="reserved"><span>Zaxiralangan mahsulotlar</span></button></div></dialog>
   <dialog id="reserved-filter-sheet" class="filter-sheet history-filter-sheet" aria-labelledby="reserved-filter-title"><div class="sheet-handle" aria-hidden="true"></div><header class="sheet-header"><button id="reserved-filter-back" class="icon-button" aria-label="Zaxira filtriga qaytish" hidden><span data-icon="back"></span></button><h2 id="reserved-filter-title">Zaxira filtri</h2><button id="reserved-filter-close" class="icon-button" aria-label="Zaxira filtrini yopish"><span data-icon="close"></span></button></header><form id="reserved-filter-form" class="invoice-filter-form"><div id="reserved-filter-body" class="history-filter-body"></div><div id="reserved-filter-choices" class="history-filter-body" hidden><label class="search stock-choice-search"><span data-icon="search"></span><input id="reserved-option-search" type="search" placeholder="Qidirish" aria-label="Zaxira filtri tanlovlarini qidirish"></label><fieldset class="filter-options"><legend class="sr-only">Qiymatni tanlang</legend><div id="reserved-option-list"></div></fieldset><p id="reserved-no-options" role="status" class="choice-note" hidden>Mos tanlov topilmadi.</p></div><p id="reserved-filter-error" class="history-filter-error" role="alert"></p><footer id="reserved-filter-footer" class="sheet-footer"><button type="button" id="reserved-filter-reset" class="outline-button">Tozalash</button><button type="submit" class="primary-button">Qo‘llash</button></footer></form></dialog>
-<dialog id="sort-sheet" class="filter-sheet" aria-labelledby="sort-title"><div class="sheet-handle" aria-hidden="true"></div><header class="sheet-header"><h2 id="sort-title">Saralash</h2><button id="sort-close" class="icon-button" aria-label="Saralashni yopish"><span data-icon="close"></span></button></header><div class="sort-directions"><button data-sort-direction="desc">Kamayish ↓</button><button data-sort-direction="asc">O‘sish ↑</button></div><div id="sort-options" class="report-choices"></div></dialog>
+<dialog id="sort-sheet" class="filter-sheet" aria-labelledby="sort-title"><div class="sheet-handle" aria-hidden="true"></div><header class="sheet-header"><h2 id="sort-title">Saralash</h2><button id="sort-close" class="icon-button" aria-label="Saralashni yopish"><span data-icon="close"></span></button></header><div class="sort-directions"><button data-sort-direction="desc">Kamayish <span data-icon="arrowDown"></span></button><button data-sort-direction="asc">O‘sish <span data-icon="arrowUp"></span></button></div><div id="sort-options" class="report-choices"></div></dialog>
 </body>
 </html>
