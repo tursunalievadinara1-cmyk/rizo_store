@@ -410,3 +410,6 @@ summary{user-select:none;-webkit-user-select:none}
 
 .returns-scope-note{color:var(--muted);font-size:12px;line-height:1.6;margin:16px 0}.returns-reason{font-size:13px;line-height:1.5;margin:12px 0;overflow-wrap:anywhere}.returns-reason>span{display:block;font-size:11px;color:var(--muted);margin-bottom:3px}
 @media screen{#returns-table td[data-column="reason"]{min-width:180px;max-width:280px;white-space:normal;overflow-wrap:anywhere}}
+#returns-filter-trigger{position:relative}
+#returns-totals .purchase-total dl{grid-template-columns:1fr}
+@media(max-width:760px){#returns-filter-count{top:2px;right:2px}#returns-totals .purchase-total dl>div{display:flex;justify-content:space-between;gap:16px}}

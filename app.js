@@ -1437,8 +1437,8 @@ const returnsRows=Array.from({length:16},(_,index)=>{
   const p=products[index%products.length],quantity=index===5?900:2+index%5;
   return {...p,id:`QAY-${String(index+1).padStart(3,'0')}`,name:index===14?'Namuna-UzunMahsulotNomi'.repeat(6):p.name,date:`2026-10-${String(6-index%6).padStart(2,'0')}`,time:['09:15','12:30','16:45'][index%3],quantity,cost:p.price,total:Math.round(quantity*p.price*100)/100,reason:index%3===0?'Namuna: qadoq shikastlangan':index%3===1?'Namuna: buyurtmaga mos kelmagan':'Namuna: uzoq tavsifli qaytarish sababi — tekshiruv vaqtida mahsulotning qadoqlanishi va komplektatsiyasida tafovut aniqlandi',employee:index%2?'Ikkinchi namuna xodim':'Namuna xodim',batch:`NAM-QAYTISH-${index+1}`};
 });
-// Isolated examples: grouping is a prototype behavior awaiting populated source comparison.
-returnsRows[6]={...returnsRows[0],id:'QAY-007',date:'2026-10-04',quantity:3,total:3*returnsRows[0].cost};
+// Synthetic duplicate exercises mixed reasons and prices observed in the source report.
+returnsRows[6]={...returnsRows[0],id:'QAY-007',date:'2026-10-04',quantity:3,cost:returnsRows[0].cost+1000,total:3*(returnsRows[0].cost+1000),reason:'Namuna: buyurtmaga mos kelmagan'};
 const returnsColumnDefs=[['rowNumber','№',(_p,i)=>i+1],['date','Yaratilgan sana',p=>`${dateLabel(p.date)} · ${p.time}`],['name','Mahsulot nomlari',p=>p.name],['variant','Variatsiya',p=>p.variant||'—'],['barcode','Shtrix-kod',p=>p.barcode],['reason','Qaytish sababi',p=>p.reason],['quantity','Miqdori',p=>p.quantity],['unit','O‘lchov birligi',p=>p.unit],['cost','Narx.Kelish',p=>p.cost],['total','Yakuniy kirish narxi',p=>p.total],['currency','Valyuta',p=>p.currency],['employee','Xodim',p=>p.employee],['branch','Filial',p=>p.branch],['warehouse','Ombor',p=>p.warehouse],['supplier','Ta’minotchi',p=>p.supplier],['batch','Ishlab chiqarish raqami',p=>p.batch||'—']];
 let returnsColumns=returnsColumnDefs.map(([key])=>key),returnsPageNumber=1,returnsSort={key:'',direction:'desc'};
 try{const saved=JSON.parse(localStorage.getItem('rizo-returns-columns-v1'));if(Array.isArray(saved)&&saved.includes('name'))returnsColumns=[...new Set(saved.filter(key=>returnsColumnDefs.some(([id])=>key===id)))];}catch{}
@@ -1448,10 +1448,16 @@ const returnsSearch=document.getElementById('returns-search'),returnsBarcode=doc
 function groupReturns(rows){
   const groups=new Map();
   rows.forEach(row=>{
-    // Never collapse currencies, variants, prices, suppliers or batch metadata.
-    const key=JSON.stringify(['barcode','name','variant','unit','currency','cost','branch','warehouse','supplier','employee','reason','batch'].map(key=>row[key]));
-    if(!groups.has(key))groups.set(key,{...row,members:[row],id:`G-${row.id}`});
-    else{const group=groups.get(key);group.members.push(row);['quantity','total'].forEach(key=>group[key]+=row[key]);if(`${row.date}T${row.time}`>`${group.date}T${group.time}`){group.date=row.date;group.time=row.time;}}
+    // Source groups by product, including different prices, reasons and suppliers.
+    // Keep incompatible currencies, variants and units separate.
+    const key=JSON.stringify(['barcode','variant','unit','currency'].map(key=>row[key]));
+    if(!groups.has(key))groups.set(key,{...row,cost:row.total,members:[row],id:`G-${row.id}`});
+    else{
+      const group=groups.get(key);group.members.push(row);
+      ['quantity','total'].forEach(key=>group[key]+=row[key]);group.cost=group.total;
+      ['reason','branch','warehouse','supplier','employee','batch'].forEach(key=>{if(group[key]!==row[key])group[key]='';});
+      if(`${row.date}T${row.time}`>`${group.date}T${group.time}`){group.date=row.date;group.time=row.time;group.name=row.name;}
+    }
   });return [...groups.values()];
 }
 function filteredReturns(){
@@ -1459,13 +1465,16 @@ function filteredReturns(){
   const rows=returnsRows.filter(p=>p.name.toLocaleLowerCase('uz').includes(query)&&p.barcode.toLocaleLowerCase('uz').includes(barcode)&&Object.entries(returnsFilters).every(([key,value])=>!value||key==='group'||(key==='from'?p.date>=value:key==='to'?p.date<=value:p[key]===value)));
   return sortReportRows(returnsFilters.group?groupReturns(rows):rows,returnsColumnDefs,returnsSort);
 }
-function returnsValue(value){return typeof value==='number'?format(value):value??'—';}
+function returnsTotals(rows){return [...new Set(rows.map(row=>row.currency))].map(currency=>({currency,total:Math.round(rows.filter(row=>row.currency===currency).reduce((sum,row)=>sum+row.total,0)*100)/100}));}
+function returnsTotalsMarkup(rows){return returnsTotals(rows).map(t=>`<section class="purchase-total"><h3>${t.currency}</h3><dl><div><dt>Umumiy qaytarish summasi</dt><dd>${money(t.total,t.currency)}</dd></div></dl></section>`).join('');}
+function returnsValue(value){return typeof value==='number'?format(value):value||'—';}
 function returnsTableMarkup(rows,links=true,offset=0){const columns=returnsColumns.map(key=>returnsColumnDefs.find(([id])=>key===id));return `<table><thead><tr>${columns.map(([key,label])=>sortHeader(key,label,'returns',links)).join('')}</tr></thead><tbody>${rows.map((p,i)=>`<tr>${columns.map(([key,,value])=>`<td data-column="${key}" class="${typeof value(p,i)==='number'?'numeric':''}">${key==='name'&&links?`<a class="product-link" data-returns href="#returns=${p.id}">${p.name}</a>`:returnsValue(value(p,i+offset))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;}
 function resetReturnsPage(){returnsPageNumber=1;renderReturns();}
 function renderReturns(){
   const rows=filteredReturns(),pages=Math.max(1,Math.ceil(rows.length/10));returnsPageNumber=Math.max(1,Math.min(returnsPageNumber,pages));const offset=(returnsPageNumber-1)*10,visible=rows.slice(offset,offset+10);
+  document.getElementById('returns-totals').innerHTML=returnsTotalsMarkup(rows);
   document.getElementById('returns-count').textContent=`${rows.length} ta ${returnsFilters.group?'guruh':'qaytarish yozuvi'}`;
-  document.getElementById('returns-cards').innerHTML=visible.map(p=>`<article class="stock-card returns-card"><div class="card-head"><h2><a class="product-link" data-returns href="#returns=${p.id}">${p.name}</a></h2><span class="currency">${p.currency}</span></div><p class="goods-meta">${dateLabel(p.date)} · ${p.variant&&p.variant!=='—'?p.variant:p.barcode}${p.members?.length>1?` · ${p.members.length} ta yozuv`:''}</p><p class="returns-reason"><span>Qaytish sababi</span>${p.reason}</p><dl class="goods-card-values"><div><dt>Miqdori</dt><dd>${format(p.quantity)} <small>${p.unit}</small></dd></div><div><dt>Yakuniy kirish narxi</dt><dd>${format(p.total)} <small>${p.currency}</small></dd></div></dl><div class="invoice-card-footer"><span>${p.supplier}</span><span class="invoice-detail-hint" aria-hidden="true">Tafsilot ${icon('chevronRight')}</span></div></article>`).join('');
+  document.getElementById('returns-cards').innerHTML=visible.map(p=>`<article class="stock-card returns-card"><div class="card-head"><h2><a class="product-link" data-returns href="#returns=${p.id}">${p.name}</a></h2><span class="currency">${p.currency}</span></div><p class="goods-meta">${dateLabel(p.date)} · ${p.variant&&p.variant!=='—'?p.variant:p.barcode}${p.members?.length>1?` · ${p.members.length} ta yozuv`:''}</p><p class="returns-reason"><span>Qaytish sababi</span>${returnsValue(p.reason)}</p><dl class="goods-card-values"><div><dt>Miqdori</dt><dd>${format(p.quantity)} <small>${p.unit}</small></dd></div><div><dt>Yakuniy kirish narxi</dt><dd>${format(p.total)} <small>${p.currency}</small></dd></div></dl><div class="invoice-card-footer"><span>${p.supplier}</span><span class="invoice-detail-hint" aria-hidden="true">Tafsilot ${icon('chevronRight')}</span></div></article>`).join('');
   document.getElementById('returns-table').innerHTML=returnsTableMarkup(visible,true,offset);
   ['returns-cards','returns-table'].forEach(id=>document.getElementById(id).hidden=!rows.length);document.getElementById('returns-empty').hidden=!!rows.length;
   const pager=document.getElementById('returns-pagination');pager.hidden=pages<=1;pager.innerHTML=`<button class="outline-button" data-returns-page="${returnsPageNumber-1}" ${returnsPageNumber===1?'disabled':''} aria-label="Oldingi qaytarish sahifasi">${icon('chevronLeft')}</button><span>${returnsPageNumber} / ${pages}</span><button class="outline-button" data-returns-page="${returnsPageNumber+1}" ${returnsPageNumber===pages?'disabled':''} aria-label="Keyingi qaytarish sahifasi">${icon('chevronRight')}</button>`;
@@ -1479,7 +1488,7 @@ function performReturnsAction(action){
   if(action==='columns'){columnContext='returns';document.querySelector('#stock-columns-sheet .choice-note').textContent='Desktop jadvali, eksport va chop etish uchun. Mahsulot nomi doim ko‘rinadi.';stockColumnDraft=[...returnsColumns,...returnsColumnDefs.map(([key])=>key).filter(key=>!returnsColumns.includes(key))].map(key=>({key,visible:returnsColumns.includes(key)}));renderStockColumnChoices();openStockDialog(stockColumnsSheet);return;}
   const rows=filteredReturns(),columns=returnsColumns.map(key=>returnsColumnDefs.find(([id])=>id===key));
   if(action==='export'){const url=URL.createObjectURL(new Blob([reportCSV({rows,columns})],{type:'text/csv;charset=utf-8;'}));const link=document.createElement('a');link.href=url;link.download='rizo-qaytarish-mahsulotlar.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);document.getElementById('report-announcement').textContent=`${rows.length} ta qaytarish yozuvi CSV faylga chiqarildi.`;}
-  if(action==='print'){const html=`<h1>Hujjatlar bo‘yicha qaytarishlar</h1><p>Sinov ma’lumotlari · ${rows.length} ta qator</p>${rows.length?returnsTableMarkup(rows,false):'<p>Mahsulot topilmadi.</p>'}`;document.getElementById('stock-print-content').innerHTML=html;document.getElementById('print-area').innerHTML=html;openStockDialog(stockPrintPreview);}
+  if(action==='print'){const html=`<h1>Hujjatlar bo‘yicha qaytarishlar</h1><p>Sinov ma’lumotlari · ${rows.length} ta qator</p>${rows.length?returnsTableMarkup(rows,false):'<p>Mahsulot topilmadi.</p>'}<div class="purchase-totals">${returnsTotalsMarkup(rows)}</div>`;document.getElementById('stock-print-content').innerHTML=html;document.getElementById('print-area').innerHTML=html;openStockDialog(stockPrintPreview);}
 }
 function showReturns(item){
   if(activeReturns===item.id)return;rememberView();activeReturns=item.id;activeSales=null;activeGoods=null;activeLabels=null;activeInvoiceLine=null;activeProduct=null;activeInvoice=null;activeReservation=null;activePurchase=null;
