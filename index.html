@@ -73,17 +73,19 @@
       <label class="search"><span data-icon="search"></span><input id="invoice-search" type="search" placeholder="Qidirish" aria-label="Faktura yoki ta’minotchini qidirish" autocomplete="off"></label>
       <div class="pending-actions">
         <button id="invoice-filter-trigger" class="outline-button" aria-label="Faktura filtri" aria-haspopup="dialog" aria-controls="invoice-filter-sheet" aria-expanded="false"><span data-icon="filter"></span>Filtr<span id="invoice-filter-count" class="history-filter-count" hidden></span></button>
-        <button class="outline-button" disabled title="Hali ulanmagan"><span data-icon="export"></span>Eksport</button>
-        <button class="outline-button" disabled title="Hali ulanmagan"><span data-icon="print"></span>Chop etish</button>
+        <button class="outline-button" data-invoice-action="export"><span data-icon="export"></span>Eksport</button>
+        <button class="outline-button" data-invoice-action="print"><span data-icon="print"></span>Chop etish</button>
+        <button class="icon-button stock-columns-trigger" data-invoice-action="columns" aria-label="Faktura jadvali ustunlari"><span data-icon="grid"></span></button>
         <button class="icon-button mobile-more" data-choice-sheet="actions" aria-label="Qo‘shimcha amallar" aria-haspopup="dialog" aria-controls="report-choice-sheet"><span data-icon="more" aria-hidden="true"></span></button>
       </div>
     </div>
     <div id="invoice-filter-chips" class="filter-chips" aria-label="Faol faktura filtrlari"></div>
-    <div class="list-meta"><span id="invoice-count" role="status" aria-live="polite"></span><span>Sinov ma’lumotlari</span></div>
+    <div class="list-meta"><span id="invoice-count" role="status" aria-live="polite"></span><button class="text-button" data-invoice-action="refresh">Yangilash</button></div>
     <div id="invoice-cards" class="cards invoice-cards"></div>
     <div id="invoice-table" class="table-wrap" tabindex="0" role="region" aria-label="Hisob-fakturalar jadvali, gorizontal aylantirish mumkin"><table><thead><tr><th>№</th><th>Faktura raqami</th><th>Turi</th><th>Ta’minotchi</th><th>Filial</th><th>Ombor</th><th>Valyuta</th><th>To‘lov tartibi</th><th>To‘lov sanasi</th><th>Xaridni ochgan xodim</th><th>Xaridni yopgan xodim</th><th>Yaratilgan sana</th><th>Narxlar ro‘yxati</th></tr></thead><tbody id="invoice-table-body"></tbody></table></div>
     <div id="invoice-empty" class="empty" hidden><span data-icon="search"></span><h2>Hisob-faktura topilmadi</h2><p>Qidiruv yoki filtrlarni o‘zgartiring.</p><button id="invoice-clear" class="outline-button">Tozalash</button></div>
-    <p class="stage-note">Hisob-fakturalar — sinov ma’lumotlari. Mahsulotlar bo‘yicha hisobot, eksport va chop etish hali ulanmagan.</p>
+    <nav id="invoice-pagination" class="report-pagination" aria-label="Hisob-faktura sahifalari"></nav>
+    <p class="stage-note">Hisob-fakturalar — sinov ma’lumotlari. Eksport va chop etishda filtrga mos barcha sahifalar olinadi. Narx yorliqlari va mahsulotlar bo‘yicha hisobot keyingi bosqichda ulanadi.</p>
   </main>
   <main id="product-page" class="product-page" aria-labelledby="product-title" hidden>
     <header class="detail-header">

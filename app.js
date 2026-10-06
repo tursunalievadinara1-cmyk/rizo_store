@@ -186,12 +186,12 @@ function sortReportRows(rows,definitions,selection,history=false){
   if(!selection.key||['rowNumber','№'].includes(selection.key))return rows;
   const definition=definitions.find(([key])=>key===selection.key);if(!definition)return rows;
   const numericHistory=['Kirish miqdori','Qoldiq miqdori','Miqdori','Kirish narxi','Sotish narxi','Sotib olish narxi','Yakuniy kirish narxi','Yakuniy narx','To‘langan','Umumiy to‘lov miqdori','Yalpi daromad'];
-  const value=row=>{if(['date','Yaratilgan sana'].includes(selection.key))return `${row.date}T${row.time}`;if(selection.key==='synced')return row.synced;if(selection.key==='expiry')return row.expiry;const raw=definition[2](row);return history&&numericHistory.includes(selection.key)?Number(String(raw).replace(/[^0-9,.-]/g,'').replace(',','.')):raw;};
+  const value=row=>{if(['date','Yaratilgan sana'].includes(selection.key))return `${row.date}T${row.time}`;if(selection.key==='synced')return row.synced;if(selection.key==='expiry')return row.expiry;if(selection.key==='paymentDate')return row.paymentDate;const raw=definition[2](row);return history&&numericHistory.includes(selection.key)?Number(String(raw).replace(/[^0-9,.-]/g,'').replace(',','.')):raw;};
   return [...rows].sort((left,right)=>{const a=value(left),b=value(right),order=typeof a==='number'&&typeof b==='number'?a-b:String(a??'').localeCompare(String(b??''),'uz',{numeric:true});return selection.direction==='asc'?order:-order;});
 }
 function sortHeader(key,label,context,interactive=true){
   if(!interactive||['rowNumber','№'].includes(key))return `<th scope="col">${label}</th>`;
-  const selected=context==='report'?reportSorts[stockTab]:historySorts[activeHistoryMode];const current=selected?.key===key;
+  const selected=context==='invoice'?invoiceSort:context==='report'?reportSorts[stockTab]:historySorts[activeHistoryMode];const current=selected?.key===key;
   return `<th scope="col" aria-sort="${current?(selected.direction==='asc'?'ascending':'descending'):'none'}"><button class="table-sort" data-sort-key="${key}" data-sort-context="${context}" aria-label="${label} bo‘yicha saralash">${label}<span aria-hidden="true">${icon(current?(selected.direction==='asc'?'arrowUp':'arrowDown'):'sort')}</span></button></th>`;
 }
 function activeStockFilters(){const defaults=emptyFilters();return Object.entries(filters).filter(([key,value])=>!['target','rate'].includes(key)&&value!==defaults[key]);}
@@ -247,11 +247,11 @@ try{Object.assign(historyColumnProfiles,JSON.parse(localStorage.getItem('rizo-hi
 function reportActionData(){if(stockTab==='reserved')return {title:'Zaxiralangan mahsulotlar',rows:filteredReservedRows(),columns:reservedColumns.map(key=>reservedColumnDefs.find(([id])=>id===key)),table:reservedTableMarkup,totals:reservedTotalsMarkup};return {title:'Qoldiq',rows:filteredStockRows(),columns:selectedStockColumns(),table:stockTableMarkup,totals:stockTotalsMarkup};}
 function openStockDialog(dialog){stockDialogOverflow=document.body.style.overflow;document.body.style.overflow='hidden';dialog.showModal();}
 [stockColumnsSheet,stockPrintPreview].forEach(dialog=>{dialog.querySelector('[data-close-stock-dialog]').addEventListener('click',()=>dialog.close());dialog.addEventListener('close',()=>{document.body.style.overflow=stockDialogOverflow;});dialog.addEventListener('click',event=>{if(event.target!==dialog)return;const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close();});});
-function currentColumnDefs(){if(columnContext==='history')return historyColumnDefinitions(activeHistoryMode);return stockTab==='reserved'?reservedColumnDefs:stockColumnDefs;}
-function currentColumns(){if(columnContext==='history')return selectedHistoryColumns(activeHistoryMode);return stockTab==='reserved'?reservedColumns:stockColumns;}
-function renderStockColumnChoices(){const list=document.getElementById('stock-columns-list');list.replaceChildren();stockColumnDraft.forEach((item,index)=>{const line=document.createElement('div');line.className='column-choice';const label=document.createElement('label');const input=document.createElement('input');input.type='checkbox';input.checked=item.visible;input.disabled=item.key==='name'||item.key==='Mahsulot nomi';input.addEventListener('change',()=>item.visible=input.checked);const name=document.createElement('span');name.textContent=currentColumnDefs().find(([key])=>key===item.key)[1];label.append(input,name);line.append(label);[['arrowUp',-1,'Yuqoriga'],['arrowDown',1,'Pastga']].forEach(([symbol,offset,title])=>{const button=document.createElement('button');button.className='icon-button';button.innerHTML=icon(symbol);button.setAttribute('aria-label',`${name.textContent}: ${title}`);button.disabled=index+offset<0||index+offset>=stockColumnDraft.length;button.addEventListener('click',()=>{[stockColumnDraft[index],stockColumnDraft[index+offset]]=[stockColumnDraft[index+offset],stockColumnDraft[index]];renderStockColumnChoices();const moved=list.children[index+offset];moved?.querySelector('input')?.focus({preventScroll:true});animateUI(moved,[{translate:`0 ${-offset*12}px`,opacity:.6},{translate:'0 0',opacity:1}],180);});line.append(button);});list.append(line);});}
+function currentColumnDefs(){if(columnContext==='invoice')return invoiceColumnDefs;if(columnContext==='history')return historyColumnDefinitions(activeHistoryMode);return stockTab==='reserved'?reservedColumnDefs:stockColumnDefs;}
+function currentColumns(){if(columnContext==='invoice')return invoiceColumns;if(columnContext==='history')return selectedHistoryColumns(activeHistoryMode);return stockTab==='reserved'?reservedColumns:stockColumns;}
+function renderStockColumnChoices(){const list=document.getElementById('stock-columns-list');list.replaceChildren();stockColumnDraft.forEach((item,index)=>{const line=document.createElement('div');line.className='column-choice';const label=document.createElement('label');const input=document.createElement('input');input.type='checkbox';input.checked=item.visible;input.disabled=item.key==='invoiceId'||item.key==='name'||item.key==='Mahsulot nomi';input.addEventListener('change',()=>item.visible=input.checked);const name=document.createElement('span');name.textContent=currentColumnDefs().find(([key])=>key===item.key)[1];label.append(input,name);line.append(label);[['arrowUp',-1,'Yuqoriga'],['arrowDown',1,'Pastga']].forEach(([symbol,offset,title])=>{const button=document.createElement('button');button.className='icon-button';button.innerHTML=icon(symbol);button.setAttribute('aria-label',`${name.textContent}: ${title}`);button.disabled=index+offset<0||index+offset>=stockColumnDraft.length;button.addEventListener('click',()=>{[stockColumnDraft[index],stockColumnDraft[index+offset]]=[stockColumnDraft[index+offset],stockColumnDraft[index]];renderStockColumnChoices();const moved=list.children[index+offset];moved?.querySelector('input')?.focus({preventScroll:true});animateUI(moved,[{translate:`0 ${-offset*12}px`,opacity:.6},{translate:'0 0',opacity:1}],180);});line.append(button);});list.append(line);});}
 document.getElementById('stock-columns-reset').addEventListener('click',()=>{stockColumnDraft=currentColumnDefs().map(([key])=>({key,visible:true}));renderStockColumnChoices();});
-document.getElementById('stock-columns-apply').addEventListener('click',()=>{const selected=stockColumnDraft.filter(c=>c.visible).map(c=>c.key);if(columnContext==='history'){historyColumnProfiles[activeHistoryMode]=selected;try{localStorage.setItem('rizo-history-columns',JSON.stringify(historyColumnProfiles));}catch{}refreshHistory();stockColumnsSheet.close();return;}if(stockTab==='reserved')reservedColumns=selected;else stockColumns=selected;try{localStorage.setItem(stockTab==='reserved'?'rizo-reserved-columns-v2':'rizo-stock-columns-v2',JSON.stringify(selected));}catch{}render();stockColumnsSheet.close();});
+document.getElementById('stock-columns-apply').addEventListener('click',()=>{const selected=stockColumnDraft.filter(c=>c.visible).map(c=>c.key);if(columnContext==='invoice'){invoiceColumns=selected;try{localStorage.setItem('rizo-invoice-columns-v1',JSON.stringify(selected));}catch{}renderInvoices();stockColumnsSheet.close();return;}if(columnContext==='history'){historyColumnProfiles[activeHistoryMode]=selected;try{localStorage.setItem('rizo-history-columns',JSON.stringify(historyColumnProfiles));}catch{}refreshHistory();stockColumnsSheet.close();return;}if(stockTab==='reserved')reservedColumns=selected;else stockColumns=selected;try{localStorage.setItem(stockTab==='reserved'?'rizo-reserved-columns-v2':'rizo-stock-columns-v2',JSON.stringify(selected));}catch{}render();stockColumnsSheet.close();});
 function csvCell(value){if(typeof value==='number')return String(value);let text=String(value??'');if(/^[\s]*[=+@-]/.test(text))text=`'${text}`;return `"${text.replaceAll('"','""')}"`;}
 function reportCSV(data){return '\uFEFF'+[data.columns.map(([,label])=>csvCell(label)).join(','),...data.rows.map((row,index)=>data.columns.map(([, ,value])=>csvCell(value(row,index))).join(','))].join('\r\n');}
 function performStockAction(action){
@@ -266,9 +266,9 @@ document.getElementById('stock-print-confirm').addEventListener('click',()=>wind
 document.addEventListener('click',event=>{const action=event.target.closest('[data-stock-action]');if(action){performStockAction(action.dataset.stockAction);return;}const page=event.target.closest('[data-stock-page]');if(page){stockPageNumber=Number(page.dataset.stockPage);render();document.getElementById('reports-title').focus({preventScroll:true});window.scrollTo(0,0);}});
 
 const sortSheet=document.getElementById('sort-sheet');let sortOverflow='';
-function currentSort(){return sortContext==='history'?(historySorts[activeHistoryMode]||{key:'',direction:'desc'}):reportSorts[stockTab];}
-function setSort(key,direction){const selected={key,direction};if(sortContext==='history'){historySorts[activeHistoryMode]=selected;refreshHistory();}else{reportSorts[stockTab]=selected;resetStockPage();}}
-function renderSortOptions(){const selected=currentSort(),defs=sortContext==='history'?historyColumnDefinitions(activeHistoryMode):(stockTab==='reserved'?reservedColumnDefs:stockColumnDefs);const list=document.getElementById('sort-options');list.replaceChildren();[['','Asl tartib'],...defs.filter(([key])=>!['rowNumber','№'].includes(key))].forEach(([key,label])=>{const button=document.createElement('button');button.className='report-choice';button.textContent=label;button.setAttribute('aria-pressed',String(selected.key===key));if(selected.key===key)button.insertAdjacentHTML('beforeend','<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>');button.addEventListener('click',()=>{setSort(key,currentSort().direction);sortSheet.close();});list.append(button);});document.querySelectorAll('[data-sort-direction]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.sortDirection===selected.direction)));}
+function currentSort(){if(sortContext==='invoice')return invoiceSort;return sortContext==='history'?(historySorts[activeHistoryMode]||{key:'',direction:'desc'}):reportSorts[stockTab];}
+function setSort(key,direction){const selected={key,direction};if(sortContext==='invoice'){invoiceSort=selected;resetInvoicePage();}else if(sortContext==='history'){historySorts[activeHistoryMode]=selected;refreshHistory();}else{reportSorts[stockTab]=selected;resetStockPage();}}
+function renderSortOptions(){const selected=currentSort(),defs=sortContext==='invoice'?invoiceColumnDefs:sortContext==='history'?historyColumnDefinitions(activeHistoryMode):(stockTab==='reserved'?reservedColumnDefs:stockColumnDefs);const list=document.getElementById('sort-options');list.replaceChildren();[['','Asl tartib'],...defs.filter(([key])=>!['rowNumber','№','labels'].includes(key))].forEach(([key,label])=>{const button=document.createElement('button');button.className='report-choice';button.textContent=label;button.setAttribute('aria-pressed',String(selected.key===key));if(selected.key===key)button.insertAdjacentHTML('beforeend','<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>');button.addEventListener('click',()=>{setSort(key,currentSort().direction);sortSheet.close();});list.append(button);});document.querySelectorAll('[data-sort-direction]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.sortDirection===selected.direction)));}
 function openSortSheet(context){sortContext=context;renderSortOptions();sortOverflow=document.body.style.overflow;document.body.style.overflow='hidden';sortSheet.showModal();}
 document.getElementById('sort-close').addEventListener('click',()=>sortSheet.close());sortSheet.addEventListener('close',()=>{document.body.style.overflow=sortOverflow;});sortSheet.addEventListener('click',event=>{if(event.target!==sortSheet)return;const r=sortSheet.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)sortSheet.close();});
 document.addEventListener('click',event=>{const open=event.target.closest('[data-sort-open]');if(open){openSortSheet(open.dataset.sortOpen);return;}const direction=event.target.closest('[data-sort-direction]');if(direction){setSort(currentSort().key,direction.dataset.sortDirection);renderSortOptions();return;}const header=event.target.closest('[data-sort-key]');if(header){sortContext=header.dataset.sortContext;const selected=currentSort();setSort(header.dataset.sortKey,selected.key===header.dataset.sortKey&&selected.direction==='desc'?'asc':'desc');}});
@@ -291,10 +291,10 @@ document.querySelectorAll('[data-choice-sheet]').forEach(trigger => {
     const isReports = trigger.dataset.choiceSheet === 'reports';
     document.getElementById('report-choice-title').textContent = isReports ? 'Hisobotlar' : 'Qo‘shimcha amallar';
     document.getElementById('report-choice-note').textContent = isReports
-      ? 'Qoldiqlar va hisob-fakturalar faol.' : ['reports','reserved'].includes(activeView) ? 'Filtrga mos barcha qatorlar uchun.' : 'Eksport va chop etish hali ulanmagan.';
+      ? 'Qoldiqlar va hisob-fakturalar faol.' : 'Filtrga mos barcha qatorlar uchun.';
     const list = document.getElementById('report-choices');
     list.replaceChildren();
-    (isReports ? reportSections : ['reports','reserved'].includes(activeView) ? [['Saralash','sort'], ['Eksport · CSV','export'], ...(activeView==='reports'?[['Chop etish','print']]:[]), ['Jadval ustunlari','columns'], ['Yangilash','refresh']] : [['Eksport'], ['Chop etish']]).forEach(([label, route]) => {
+    (isReports ? reportSections : [['Saralash','sort'], ['Eksport · CSV','export'], ...(activeView!=='reserved'?[['Chop etish','print']]:[]), ['Jadval ustunlari','columns'], ['Yangilash','refresh']]).forEach(([label, route]) => {
       const button = document.createElement('button'); button.className = 'report-choice';
       const name = document.createElement('span'); name.textContent = label; button.append(name);
       if (route) {
@@ -302,7 +302,7 @@ document.querySelectorAll('[data-choice-sheet]').forEach(trigger => {
           button.setAttribute('aria-current', 'page');
           button.insertAdjacentHTML('beforeend', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>');
         }
-        button.addEventListener('click', () => { reportChoiceSheet.close(); if(isReports) navigate(route); else requestAnimationFrame(()=>performStockAction(route)); });
+        button.addEventListener('click', () => { reportChoiceSheet.close(); if(isReports) navigate(route); else requestAnimationFrame(()=>activeView==='invoices'?performInvoiceAction(route):performStockAction(route)); });
       } else {
         button.disabled = true;
         const note = document.createElement('small'); note.textContent = 'Hali ulanmagan'; button.append(note);
@@ -899,6 +899,16 @@ const invoices = [
   {id:'NAM-1004',type:'Ko‘chirish',supplier:'Namuna ta’minotchi',branch:'Ikkinchi namuna filial',warehouse:'Ikkinchi namuna ombor',currency:'UZS',payment:'—',paymentDate:'',openedBy:'Namuna xodim',closedBy:'—',date:'2026-09-28',time:'11:20'},
   {id:'NAM-1005',type:'Zakup',supplier:'Ikkinchi namuna ta’minotchi',branch:'Namuna filial',warehouse:'Namuna ombor',currency:'USD',payment:'Qarzga',paymentDate:'',openedBy:'Ikkinchi namuna xodim',closedBy:'Namuna xodim',date:'2026-09-24',time:'10:00'},
 ];
+// Extra sample invoices exercise more than one ten-row page.
+invoices.push(...Array.from({length:7},(_,index)=>({...invoices[index%5],id:`NAM-10${String(index+6).padStart(2,'0')}`,date:`2026-09-${String(20-index).padStart(2,'0')}`,time:'10:30'})));
+let invoicePageNumber=1,invoiceSort={key:'',direction:'desc'};
+const invoicePageSize=10;
+const invoiceColumnDefs=[
+  ['rowNumber','№',(_item,index)=>index+1],['invoiceId','Faktura raqami',item=>item.id],
+  ['type','Turi',item=>item.type],['supplier','Ta’minotchi',item=>item.supplier],['branch','Filial',item=>item.branch],['warehouse','Ombor',item=>item.warehouse],['currency','Valyuta',item=>item.currency],['payment','To‘lov tartibi',item=>item.payment],['paymentDate','To‘lov sanasi',item=>item.paymentDate?dateLabel(item.paymentDate):'Ko‘rsatilmagan'],['openedBy','Xaridni ochgan xodim',item=>item.openedBy],['closedBy','Xaridni yopgan xodim',item=>item.closedBy],['date','Yaratilgan sana',item=>`${dateLabel(item.date)} · ${item.time}`],['labels','Narxlar ro‘yxati',()=> '']
+];
+let invoiceColumns=invoiceColumnDefs.map(([key])=>key);
+try{const saved=JSON.parse(localStorage.getItem('rizo-invoice-columns-v1'));if(Array.isArray(saved)&&saved.includes('invoiceId'))invoiceColumns=[...new Set(saved.filter(key=>invoiceColumnDefs.some(([id])=>id===key)))];}catch{}
 const invoiceFilterLabels = {branch:'Filial',supplier:'Ta’minotchi',warehouse:'Ombor',currency:'Valyuta',type:'Turi',payment:'To‘lov tartibi',from:'Sanadan boshlab',to:'Sanagacha'};
 let invoiceFilters = {}, invoiceDraft = {}, invoiceChoosing = null;
 const invoiceSearch = document.getElementById('invoice-search');
@@ -913,15 +923,43 @@ function invoiceFields(item) {
 }
 function filteredInvoices() {
   const query = invoiceSearch.value.trim().toLocaleLowerCase('uz');
-  return invoices.filter(item => `${item.id} ${item.supplier}`.toLocaleLowerCase('uz').includes(query)
-    && Object.entries(invoiceFilters).every(([key,value]) => !value || (key === 'from' ? item.date >= value : key === 'to' ? item.date <= value : item[key] === value)));
+  return sortReportRows(invoices.filter(item => `${item.id} ${item.supplier}`.toLocaleLowerCase('uz').includes(query)
+    && Object.entries(invoiceFilters).every(([key,value]) => !value || (key === 'from' ? item.date >= value : key === 'to' ? item.date <= value : item[key] === value))),invoiceColumnDefs,invoiceSort);
 }
+function resetInvoicePage(){invoicePageNumber=1;renderInvoices();}
+function invoiceTableMarkup(rows,links=true,offset=0){
+  const columns=invoiceColumns.map(key=>invoiceColumnDefs.find(([id])=>id===key)).filter(([key])=>links||key!=='labels');
+  return `<table><thead><tr>${columns.map(([key,label])=>sortHeader(key,label,'invoice',links&&key!=='labels')).join('')}</tr></thead><tbody>${rows.map((item,index)=>`<tr>${columns.map(([key,,value])=>`<td data-column="${key}">${key==='invoiceId'&&links?`<a class="product-link" href="#invoice=${item.id}" data-invoice="${item.id}" aria-label="${item.id} faktura tafsiloti">${item.id}</a>`:key==='labels'?'<button class="invoice-label-button" disabled title="Narx yorliqlari keyingi bosqichda ulanadi">Narx yorliqlari</button>':value(item,index+offset)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+}
+function performInvoiceAction(action,id){
+  if(action==='sort'){openSortSheet('invoice');return;}
+  if(action==='refresh'){renderInvoices();document.getElementById('report-announcement').textContent='Sinov hisob-fakturalari yangilandi.';return;}
+  if(action==='columns'){
+    columnContext='invoice';document.querySelector('#stock-columns-sheet .choice-note').textContent='Desktop jadvali, eksport va chop etish uchun. Faktura raqami doim ko‘rinadi.';
+    stockColumnDraft=[...invoiceColumns,...invoiceColumnDefs.map(([key])=>key).filter(key=>!invoiceColumns.includes(key))].map(key=>({key,visible:invoiceColumns.includes(key)}));renderStockColumnChoices();openStockDialog(stockColumnsSheet);return;
+  }
+  const rows=id?invoices.filter(item=>item.id===id):filteredInvoices();
+  const columns=invoiceColumns.map(key=>invoiceColumnDefs.find(([keyId])=>keyId===key)).filter(([key])=>key!=='labels');
+  if(action==='export'){
+    const url=URL.createObjectURL(new Blob([reportCSV({rows,columns})],{type:'text/csv;charset=utf-8;'}));const link=document.createElement('a');link.href=url;link.download=`rizo-fakturalar-${id||stockDate}.csv`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);document.getElementById('report-announcement').textContent=`${rows.length} ta hisob-faktura ma’lumoti CSV faylga chiqarildi.`;return;
+  }
+  if(action==='print'){
+    const html=`<h1>Hisob-fakturalar</h1><p>Sinov ma’lumotlari · ${rows.length} ta hisob-faktura</p>${rows.length?invoiceTableMarkup(rows,false):'<p>Hisob-faktura topilmadi.</p>'}`;
+    document.getElementById('stock-print-content').innerHTML=html;document.getElementById('print-area').innerHTML=html;openStockDialog(stockPrintPreview);
+  }
+}
+document.addEventListener('click',event=>{
+  const action=event.target.closest('[data-invoice-action]');if(action){performInvoiceAction(action.dataset.invoiceAction,action.dataset.invoiceId);return;}
+  const page=event.target.closest('[data-invoice-page]');if(page){invoicePageNumber=Number(page.dataset.invoicePage);renderInvoices();document.getElementById('invoice-report-title').focus({preventScroll:true});window.scrollTo(0,0);}
+});
 function renderInvoices() {
   const rows = filteredInvoices();
+  const pages=Math.max(1,Math.ceil(rows.length/invoicePageSize));invoicePageNumber=Math.max(1,Math.min(invoicePageNumber,pages));const offset=(invoicePageNumber-1)*invoicePageSize;const visible=rows.slice(offset,offset+invoicePageSize);
   document.getElementById('invoice-count').textContent = `${rows.length} ta hisob-faktura`;
   const cards = document.getElementById('invoice-cards');
-  cards.innerHTML = rows.map(item => `<article class="stock-card invoice-card"><div class="card-head"><h2><a class="product-link" href="#invoice=${item.id}" data-invoice="${item.id}" aria-label="${item.id} faktura tafsiloti">${item.id}</a></h2><span class="currency">${item.currency}</span></div><p class="invoice-supplier">${item.supplier}</p><div class="invoice-card-meta"><span class="history-type">${item.type}</span><span class="status ${item.payment === 'Qarzga' ? 'low' : 'invoice-payment'}">${item.payment === '—' ? 'To‘lov ko‘rsatilmagan' : item.payment}</span></div><div class="invoice-card-footer"><time datetime="${item.date}T${item.time}">${dateLabel(item.date)} · ${item.time}</time><span class="invoice-detail-hint" aria-hidden="true">Tafsilot ${icon('chevronRight')}</span></div></article>`).join('');
-  document.getElementById('invoice-table-body').innerHTML = rows.map((item,index) => `<tr><td>${index+1}</td><td><a class="product-link" href="#invoice=${item.id}" data-invoice="${item.id}" aria-label="${item.id} faktura tafsiloti">${item.id}</a></td>${invoiceFields(item).slice(1).map(([,value])=>`<td>${value}</td>`).join('')}<td><button class="invoice-label-button" disabled title="Narx yorliqlarini chop etish hali ulanmagan">Narx yorliqlari</button></td></tr>`).join('');
+  cards.innerHTML = visible.map(item => `<article class="stock-card invoice-card"><div class="card-head"><h2><a class="product-link" href="#invoice=${item.id}" data-invoice="${item.id}" aria-label="${item.id} faktura tafsiloti">${item.id}</a></h2><span class="currency">${item.currency}</span></div><p class="invoice-supplier">${item.supplier}</p><div class="invoice-card-meta"><span class="history-type">${item.type}</span><span class="status ${item.payment === 'Qarzga' ? 'low' : 'invoice-payment'}">${item.payment === '—' ? 'To‘lov ko‘rsatilmagan' : item.payment}</span></div><div class="invoice-card-footer"><time datetime="${item.date}T${item.time}">${dateLabel(item.date)} · ${item.time}</time><span class="invoice-detail-hint" aria-hidden="true">Tafsilot ${icon('chevronRight')}</span></div></article>`).join('');
+  document.getElementById('invoice-table').innerHTML=invoiceTableMarkup(visible,true,offset);
+  const pager=document.getElementById('invoice-pagination');pager.hidden=pages<=1;pager.innerHTML=`<button class="outline-button" data-invoice-page="${invoicePageNumber-1}" ${invoicePageNumber===1?'disabled':''} aria-label="Oldingi faktura sahifasi">${icon('chevronLeft')}</button><span>${invoicePageNumber} / ${pages}</span><button class="outline-button" data-invoice-page="${invoicePageNumber+1}" ${invoicePageNumber===pages?'disabled':''} aria-label="Keyingi faktura sahifasi">${icon('chevronRight')}</button>`;
   cards.hidden = !rows.length;
   document.getElementById('invoice-table').hidden = !rows.length;
   document.getElementById('invoice-empty').hidden = !!rows.length;
@@ -930,7 +968,7 @@ function renderInvoices() {
   active.forEach(([key,value]) => {
     const label = `${invoiceFilterLabels[key]}: ${['from','to'].includes(key) ? dateLabel(value) : value}`;
     const button = document.createElement('button'); button.className = 'filter-chip'; button.textContent = `${label} ×`; button.setAttribute('aria-label',`${label} filtrini olib tashlash`);
-    button.addEventListener('click',()=>{delete invoiceFilters[key];renderInvoices();invoiceFilterTrigger.focus({preventScroll:true});}); chips.append(button);
+    button.addEventListener('click',()=>{delete invoiceFilters[key];resetInvoicePage();invoiceFilterTrigger.focus({preventScroll:true});}); chips.append(button);
   });
   const badge = document.getElementById('invoice-filter-count'); badge.hidden = !active.length; badge.textContent = active.length;
   invoiceFilterTrigger.setAttribute('aria-label', active.length ? `Faktura filtri, ${active.length} ta faol` : 'Faktura filtri');
@@ -949,7 +987,7 @@ function showInvoice(item) {
   information.innerHTML = '<h2>Faktura ma’lumotlari</h2><dl class="detail-fields"></dl>';
   information.querySelector('dl').append(...invoiceFields(item).map(([label,value])=>field(label,value)));
   const actions = document.createElement('section'); actions.className = 'detail-information invoice-detail-actions';
-  actions.innerHTML = '<h2>Amallar</h2><button class="outline-button" disabled>Eksport</button><button class="outline-button" disabled>Narx yorliqlari</button><p class="choice-note">Eksport va narx yorliqlarini chop etish hali ulanmagan.</p>';
+  actions.innerHTML = `<h2>Amallar</h2><button class="outline-button" data-invoice-action="export" data-invoice-id="${item.id}">${icon('export')}Ma’lumotlar · CSV</button><button class="outline-button" disabled>Narx yorliqlari</button><p class="choice-note">CSV faylda ushbu fakturaning tanlangan ma’lumot ustunlari bo‘ladi. Narx yorliqlari keyingi bosqichda ulanadi.</p>`;
   const note = document.createElement('p'); note.className = 'stage-note'; note.textContent = 'Sinov hisob-fakturasi. Jonli omborga bog‘lanmagan.';
   detailContent.classList.add('is-purchase-detail'); detailContent.replaceChildren(summary, information, actions, note);
   document.title = `${item.id} · Hisob-faktura · Rizo Store`;
@@ -1000,8 +1038,8 @@ function showInvoiceChoices(key) {
   invoiceOptionSearch.value = ''; invoiceOptionSearch.closest('label').hidden = !['supplier','warehouse','branch'].includes(key);
   renderInvoiceChoices(); document.querySelector('#invoice-option-list input:checked')?.focus({preventScroll:true}); enterContent(invoiceFilterChoices,1,12);
 }
-invoiceSearch.addEventListener('input', renderInvoices);
-document.getElementById('invoice-clear').addEventListener('click',()=>{invoiceFilters={};invoiceSearch.value='';renderInvoices();invoiceSearch.focus();});
+invoiceSearch.addEventListener('input', resetInvoicePage);
+document.getElementById('invoice-clear').addEventListener('click',()=>{invoiceFilters={};invoiceSearch.value='';resetInvoicePage();invoiceSearch.focus();});
 invoiceFilterTrigger.addEventListener('click',()=>{
   invoiceDraft={...invoiceFilters};showInvoiceFilterFields();invoiceOverflow=document.body.style.overflow;document.body.style.overflow='hidden';invoiceFilterSheet.showModal();invoiceFilterTrigger.setAttribute('aria-expanded','true');
 });
@@ -1012,7 +1050,7 @@ document.getElementById('invoice-filter-reset').addEventListener('click',()=>{in
 document.getElementById('invoice-filter-form').addEventListener('submit',event=>{
   event.preventDefault();if(invoiceChoosing)return;
   if(invoiceDraft.from && invoiceDraft.to && invoiceDraft.from>invoiceDraft.to){document.getElementById('invoice-filter-error').textContent='Boshlanish sanasi tugash sanasidan keyin bo‘lmasin.';document.getElementById('invoice-date-to').focus();return;}
-  invoiceFilters={...invoiceDraft};renderInvoices();invoiceFilterSheet.close();
+  invoiceFilters={...invoiceDraft};resetInvoicePage();invoiceFilterSheet.close();
 });
 invoiceFilterSheet.addEventListener('close',()=>{document.body.style.overflow=invoiceOverflow;invoiceFilterTrigger.setAttribute('aria-expanded','false');if(invoiceFilterTrigger.getClientRects().length)invoiceFilterTrigger.focus({preventScroll:true});});
 invoiceFilterSheet.addEventListener('cancel',event=>{if(invoiceChoosing){event.preventDefault();showInvoiceFilterFields(invoiceChoosing);}});

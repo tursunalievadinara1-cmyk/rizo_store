@@ -238,7 +238,7 @@ a.product-link{display:inline-block}
 .invoice-card-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;border-top:1px solid var(--line);padding-top:12px;margin-top:14px;font-size:var(--text-caption);color:var(--muted)}
 .invoice-detail-hint{white-space:nowrap;color:var(--primary);font-weight:800}
 .invoice-label-button{border:1px solid var(--line);border-radius:var(--radius-tab);background:var(--bg);padding:8px;font-size:var(--text-caption)}
-#invoice-table td:nth-child(4),#invoice-table td:nth-child(6){white-space:normal;min-width:180px;max-width:280px;overflow-wrap:anywhere}
+#invoice-table td:is([data-column="supplier"],[data-column="warehouse"],[data-column="openedBy"],[data-column="closedBy"],[data-column="branch"]){white-space:normal;min-width:180px;max-width:280px;overflow-wrap:anywhere}
 #invoice-filter-trigger{position:relative}
 .invoice-filter-form{display:flex;flex-direction:column;min-height:0}
 .invoice-choice-search{max-width:none;margin-bottom:8px;flex:none}
@@ -344,3 +344,8 @@ svg.ui-chevron,svg.ui-direction{width:var(--icon-small);height:var(--icon-small)
 /* Avoid sideways layout shifts when a modal locks the page scrollbar. */
 html{scrollbar-gutter:stable}
 summary{user-select:none;-webkit-user-select:none}
+
+/* Column order is user-controlled, so wrapping follows content rather than position. */
+#invoice-table td{max-width:280px;overflow-wrap:anywhere}
+#invoice-table td:has(.product-link){min-width:180px;max-width:280px;white-space:normal}
+.invoice-detail-actions .outline-button{max-width:100%;white-space:normal}
